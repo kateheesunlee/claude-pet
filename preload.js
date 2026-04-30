@@ -5,6 +5,10 @@ contextBridge.exposeInMainWorld('petAPI', {
   onForceBother: (cb) => ipcRenderer.on('force-bother', cb),
   onForceSleep: (cb) => ipcRenderer.on('force-sleep', cb),
   onToggleVisibility: (cb) => ipcRenderer.on('toggle-visibility', cb),
+  onClaudeCodeStop: (cb) =>
+    ipcRenderer.on('claude-code-stop', (_e, payload) => cb(payload)),
+  onClaudeCodeNotification: (cb) =>
+    ipcRenderer.on('claude-code-notification', (_e, payload) => cb(payload)),
   startCursorTracking: () => ipcRenderer.send('start-cursor-tracking'),
   stopCursorTracking: () => ipcRenderer.send('stop-cursor-tracking'),
   onCursorPos: (cb) => ipcRenderer.on('cursor-pos', (_e, p) => cb(p)),

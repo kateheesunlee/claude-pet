@@ -104,13 +104,19 @@ function pickLine(lines) {
   return lines[Math.floor(Math.random() * lines.length)];
 }
 
-function startBother() {
-  if (state === 'bother') return;
+function startBother(customMessage = null) {
+  if (state === 'bother') {
+    if (customMessage) showBubble(customMessage, BOTHER_DURATION_MS - 500);
+    // Re-arriving event extends the bother window — fresh full duration.
+    clearTimeout(endBotherTimer);
+    endBotherTimer = setTimeout(stopBother, BOTHER_DURATION_MS);
+    return;
+  }
   if (state === 'sleeping') wakeUp();
   resetSleepTimer();
   setState('bother');
-  const lines = BOTHER_LINES;
-  showBubble(pickLine(lines), BOTHER_DURATION_MS - 500);
+  const message = customMessage || pickLine(BOTHER_LINES);
+  showBubble(message, BOTHER_DURATION_MS - 500);
 
   // Capture current visual position and switch to absolute left/top so we can walk
   const rect = pet.getBoundingClientRect();
@@ -123,12 +129,14 @@ function startBother() {
   window.petAPI?.startCursorTracking();
   if (!walkRAF) walkRAF = requestAnimationFrame(walkStep);
 
-  // chained chatter — re-roll line halfway through
-  setTimeout(() => {
-    if (state === 'bother') {
-      showBubble(pickLine(lines), 3000);
-    }
-  }, BOTHER_DURATION_MS / 2);
+  // chained chatter — re-roll line halfway through (skip when we showed a custom msg)
+  if (!customMessage) {
+    setTimeout(() => {
+      if (state === 'bother') {
+        showBubble(pickLine(BOTHER_LINES), 3000);
+      }
+    }, BOTHER_DURATION_MS / 2);
+  }
 
   clearTimeout(endBotherTimer);
   endBotherTimer = setTimeout(stopBother, BOTHER_DURATION_MS);
@@ -370,6 +378,17 @@ window.petAPI?.onForceBother(() => startBother());
 window.petAPI?.onForceSleep(() => forceSleep());
 window.petAPI?.onToggleVisibility(() => {
   pet.classList.toggle('hidden-all');
+});
+
+// Claude Code (CLI) hook events forwarded from main's HTTP server
+window.petAPI?.onClaudeCodeStop((payload) => {
+  const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
+  startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!');
+});
+
+window.petAPI?.onClaudeCodeNotification((payload) => {
+  const msg = payload?.message;
+  startBother(msg ? `⚠️ ${msg}` : '⚠️ Claude Code 신호!');
 });
 
 // Boot

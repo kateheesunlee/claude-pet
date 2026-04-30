@@ -1,8 +1,16 @@
 const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage } = require('electron');
 const path = require('path');
+const http = require('http');
+
+// Claude Desktop notification watcher is currently disconnected — see git
+// history for the wiring. Focusing on Claude Code (CLI) hook integration first.
+
+const HOOK_PORT = 47625;
 
 let mainWindow = null;
 let tray = null;
+let hookServer = null;
+let hookServerStatus = 'starting...';
 let demoTimerEnabled = false;
 let demoTimerHandle = null;
 const DEMO_INTERVAL_MS = 30_000;
@@ -82,7 +90,13 @@ function buildTray() {
 }
 
 function rebuildTrayMenu() {
+  if (!tray) return;
   const menu = Menu.buildFromTemplate([
+    {
+      label: `Hook: ${hookServerStatus}`,
+      enabled: false,
+    },
+    { type: 'separator' },
     {
       label: 'Bother now',
       click: () => mainWindow?.webContents.send('force-bother'),
@@ -124,10 +138,81 @@ function stopDemoTimer() {
   demoTimerHandle = null;
 }
 
+function dispatchHook(url, payload, res) {
+  // No window means the renderer is gone — caller should retry, or just know
+  // it landed in a dropped session.
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    res.writeHead(503, { 'content-type': 'application/json' });
+    res.end('{"ok":false,"error":"pet window not ready"}');
+    return;
+  }
+  if (url === '/claude-code/stop') {
+    console.log('[hook] Stop', payload?.session_id?.slice(0, 8) || '', payload?.cwd || '');
+    mainWindow.webContents.send('claude-code-stop', payload);
+  } else if (url === '/claude-code/notification') {
+    console.log('[hook] Notification', payload?.message || payload?.session_id?.slice(0, 8) || '');
+    mainWindow.webContents.send('claude-code-notification', payload);
+  } else {
+    res.writeHead(404); res.end();
+    return;
+  }
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end('{"ok":true}');
+}
+
+function startHookServer() {
+  hookServer = http.createServer((req, res) => {
+    if (req.method !== 'POST') {
+      res.writeHead(405); res.end(); return;
+    }
+    let body = '';
+    let aborted = false;
+    req.on('data', (chunk) => {
+      if (aborted) return;
+      body += chunk;
+      if (body.length > 1_000_000) {
+        aborted = true;
+        res.writeHead(413); res.end();
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (aborted) return;
+      let payload = null;
+      if (body.trim()) {
+        try { payload = JSON.parse(body); } catch { payload = { raw: body.slice(0, 200) }; }
+      }
+      dispatchHook(req.url || '', payload, res);
+    });
+  });
+
+  hookServer.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      hookServerStatus = `port ${HOOK_PORT} in use`;
+      console.error(`[hook] port ${HOOK_PORT} already in use — Claude Code hooks will not reach the pet`);
+    } else {
+      hookServerStatus = `error: ${err.message}`;
+      console.error('[hook] server error:', err.message);
+    }
+    rebuildTrayMenu();
+  });
+
+  hookServer.listen(HOOK_PORT, '127.0.0.1', () => {
+    hookServerStatus = `listening on :${HOOK_PORT}`;
+    console.log(`[hook] listening on http://127.0.0.1:${HOOK_PORT}`);
+    rebuildTrayMenu();
+  });
+}
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') app.dock?.hide();
   createWindow();
   buildTray();
+  startHookServer();
+});
+
+app.on('before-quit', () => {
+  hookServer?.close();
 });
 
 app.on('window-all-closed', (e) => {
