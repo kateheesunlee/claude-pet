@@ -152,6 +152,9 @@ function dispatchHook(url, payload, res) {
   } else if (url === '/claude-code/notification') {
     console.log('[hook] Notification', payload?.message || payload?.session_id?.slice(0, 8) || '');
     mainWindow.webContents.send('claude-code-notification', payload);
+  } else if (url === '/claude-code/permission-request') {
+    console.log('[hook] PermissionRequest', payload?.tool_name || payload?.session_id?.slice(0, 8) || '');
+    mainWindow.webContents.send('claude-code-permission-request', payload);
   } else {
     res.writeHead(404); res.end();
     return;

@@ -333,6 +333,8 @@ body {
 
 /* ==== Speech bubble ==== */
 #bubble {
+  /* Border color is driven by tone class. Default = coral (general bother). */
+  --bubble-color: var(--claude-coral);
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -346,11 +348,17 @@ body {
   font-weight: 600;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  border: 2px solid var(--claude-coral);
+  border: 2px solid var(--bubble-color);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* Tone variants — must come before ::after below so it picks up the new value */
+#bubble.tone-success { --bubble-color: #22c55e; }  /* green  — Stop / cwd done */
+#bubble.tone-info    { --bubble-color: #3b82f6; }  /* blue   — Notification    */
+#bubble.tone-urgent  { --bubble-color: #ef4444; }  /* red    — PermissionRequest */
+#bubble.tone-happy   { --bubble-color: #ec4899; }  /* pink   — petting, click  */
 
 #bubble:not(.hidden) {
   opacity: 1;
@@ -373,7 +381,7 @@ body {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-top: 8px solid var(--claude-coral);
+  border-top: 8px solid var(--bubble-color);
 }
 
 .hidden { display: none; }
@@ -571,4 +579,40 @@ body {
   0%   { transform: translateY(2px) rotate(-8deg); opacity: 0.5; }
   50%  { transform: translateY(-6px) rotate(8deg); opacity: 1; }
   100% { transform: translateY(2px) rotate(-8deg); opacity: 0.5; }
+}
+
+/* ==== Urgent state — Claude Code waiting on user input (e.g. permission) ==== */
+#pet.urgent #bubble {
+  border-color: #ff3b30;
+  background: #fff4f3;
+  color: #b30000;
+  box-shadow: 0 4px 16px rgba(255, 59, 48, 0.35);
+}
+#pet.urgent #bubble::after {
+  border-top-color: #ff3b30;
+}
+#pet.urgent #bubble:not(.hidden) {
+  animation: bubble-bob-urgent 0.55s ease-in-out infinite;
+}
+@keyframes bubble-bob-urgent {
+  0%, 100% { transform: translateX(-50%) translateY(-12px) scale(1); }
+  50%      { transform: translateX(-50%) translateY(-18px) scale(1.04); }
+}
+
+/* Tremble overrides waddle while urgent */
+#pet.urgent.state-bother #dog {
+  animation: urgent-tremble 0.28s ease-in-out infinite !important;
+}
+#pet.urgent.state-bother.facing-left #dog {
+  animation: urgent-tremble-flipped 0.28s ease-in-out infinite !important;
+}
+@keyframes urgent-tremble {
+  0%, 100% { transform: rotate(-3deg) translateX(0); }
+  25%      { transform: rotate(2deg) translateX(-1.5px); }
+  75%      { transform: rotate(-2deg) translateX(1.5px); }
+}
+@keyframes urgent-tremble-flipped {
+  0%, 100% { transform: scaleX(-1) rotate(-3deg) translateX(0); }
+  25%      { transform: scaleX(-1) rotate(2deg) translateX(-1.5px); }
+  75%      { transform: scaleX(-1) rotate(-2deg) translateX(1.5px); }
 }

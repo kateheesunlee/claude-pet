@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('petAPI', {
     ipcRenderer.on('claude-code-stop', (_e, payload) => cb(payload)),
   onClaudeCodeNotification: (cb) =>
     ipcRenderer.on('claude-code-notification', (_e, payload) => cb(payload)),
+  onClaudeCodePermissionRequest: (cb) =>
+    ipcRenderer.on('claude-code-permission-request', (_e, payload) => cb(payload)),
   startCursorTracking: () => ipcRenderer.send('start-cursor-tracking'),
   stopCursorTracking: () => ipcRenderer.send('stop-cursor-tracking'),
   onCursorPos: (cb) => ipcRenderer.on('cursor-pos', (_e, p) => cb(p)),

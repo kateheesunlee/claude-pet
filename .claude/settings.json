@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -sf -X POST http://127.0.0.1:47625/claude-code/stop -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] STOP: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/stop -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
           }
         ]
       }
@@ -15,7 +15,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -sf -X POST http://127.0.0.1:47625/claude-code/notification -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] NOTIF: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/notification -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PERM: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/permission-request -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PRE: $input\" >> /tmp/claude-pet-hook.log"
           }
         ]
       }

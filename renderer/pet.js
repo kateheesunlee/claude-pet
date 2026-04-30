@@ -3,8 +3,10 @@ const bubble = document.getElementById('bubble');
 const bubbleText = document.getElementById('bubble-text');
 
 const BOTHER_DURATION_MS = 8_000;
+const URGENT_SAFETY_MS = 10 * 60 * 1000;  // urgent auto-clears after this if untouched
 const SLEEP_AFTER_MS = 5 * 60 * 1000;
 let sleepTimer = null;
+let isUrgent = false;
 
 const BOTHER_LINES = [
   '야! 놀아줘 🐾',
@@ -78,7 +80,7 @@ function goToSleep() {
 function wakeUp() {
   if (state !== 'sleeping') return;
   setState('idle');
-  showBubble(pickLine(['음...?', '어어!', '하암... 🐶']), 1500);
+  showBubble(pickLine(['음...?', '어어!', '하암... 🐶']), 1500, 'happy');
 }
 
 function forceSleep() {
@@ -91,9 +93,13 @@ function forceSleep() {
   bubble.classList.add('hidden');
 }
 
-function showBubble(text, durationMs = 2500) {
+const BUBBLE_TONES = ['default', 'success', 'info', 'urgent', 'happy'];
+function showBubble(text, durationMs = 2500, tone = 'default') {
   clearTimeout(bubbleTimer);
   bubbleText.textContent = text;
+  // Reset tone classes, then apply the chosen one. 'default' = no class (coral).
+  for (const t of BUBBLE_TONES) bubble.classList.remove(`tone-${t}`);
+  if (tone !== 'default') bubble.classList.add(`tone-${tone}`);
   bubble.classList.remove('hidden');
   bubbleTimer = setTimeout(() => {
     bubble.classList.add('hidden');
@@ -104,19 +110,38 @@ function pickLine(lines) {
   return lines[Math.floor(Math.random() * lines.length)];
 }
 
-function startBother(customMessage = null) {
+function startBother(customMessage = null, urgent = false, tone = null) {
+  // Default tone: urgent → red, else → coral. Hook handlers can override.
+  const effectiveTone = tone || (urgent ? 'urgent' : 'default');
   if (state === 'bother') {
-    if (customMessage) showBubble(customMessage, BOTHER_DURATION_MS - 500);
-    // Re-arriving event extends the bother window — fresh full duration.
+    // Already bothering — refresh bubble + timer. Upgrade to urgent if needed,
+    // never downgrade.
+    const upgrading = urgent && !isUrgent;
+    if (upgrading) {
+      isUrgent = true;
+      pet.classList.add('urgent');
+      clearTimeout(sleepTimer);
+      sleepTimer = null;
+    }
+    const dur = isUrgent ? URGENT_SAFETY_MS : BOTHER_DURATION_MS - 500;
+    if (customMessage) showBubble(customMessage, dur, effectiveTone);
     clearTimeout(endBotherTimer);
-    endBotherTimer = setTimeout(stopBother, BOTHER_DURATION_MS);
+    endBotherTimer = setTimeout(stopBother, isUrgent ? URGENT_SAFETY_MS : BOTHER_DURATION_MS);
     return;
   }
   if (state === 'sleeping') wakeUp();
-  resetSleepTimer();
+
+  if (urgent) {
+    isUrgent = true;
+    pet.classList.add('urgent');
+    clearTimeout(sleepTimer);     // freeze sleep while urgent
+    sleepTimer = null;
+  } else {
+    resetSleepTimer();
+  }
   setState('bother');
   const message = customMessage || pickLine(BOTHER_LINES);
-  showBubble(message, BOTHER_DURATION_MS - 500);
+  showBubble(message, urgent ? URGENT_SAFETY_MS : BOTHER_DURATION_MS - 500, effectiveTone);
 
   // Capture current visual position and switch to absolute left/top so we can walk
   const rect = pet.getBoundingClientRect();
@@ -129,23 +154,29 @@ function startBother(customMessage = null) {
   window.petAPI?.startCursorTracking();
   if (!walkRAF) walkRAF = requestAnimationFrame(walkStep);
 
-  // chained chatter — re-roll line halfway through (skip when we showed a custom msg)
-  if (!customMessage) {
+  // chained chatter — re-roll line halfway through (skip when custom or urgent)
+  if (!customMessage && !urgent) {
     setTimeout(() => {
       if (state === 'bother') {
-        showBubble(pickLine(BOTHER_LINES), 3000);
+        showBubble(pickLine(BOTHER_LINES), 3000, effectiveTone);
       }
     }, BOTHER_DURATION_MS / 2);
   }
 
   clearTimeout(endBotherTimer);
-  endBotherTimer = setTimeout(stopBother, BOTHER_DURATION_MS);
+  endBotherTimer = setTimeout(stopBother, urgent ? URGENT_SAFETY_MS : BOTHER_DURATION_MS);
 }
 
 function stopBother() {
   if (state === 'idle') return;
   setState('idle');
   bubble.classList.add('hidden');
+
+  if (isUrgent) {
+    isUrgent = false;
+    pet.classList.remove('urgent');
+    resetSleepTimer();   // urgent had frozen sleep; resume the countdown now
+  }
 
   window.petAPI?.stopCursorTracking();
   targetX = targetY = null;
@@ -225,7 +256,11 @@ function startPetting() {
   if (state === 'petted') return;
   if (state === 'sleeping') wakeUp();
   resetSleepTimer();
-  // petting cancels any active bother
+  // petting is a positive interaction — also resolves any active urgent
+  if (isUrgent) {
+    isUrgent = false;
+    pet.classList.remove('urgent');
+  }
   clearTimeout(endBotherTimer);
   bubble.classList.add('hidden');
   setState('petted');
@@ -237,7 +272,7 @@ function stopPetting(silent = false) {
   clearTimeout(pettingHoldTimer);
   pettingHoldTimer = null;
   if (!silent) {
-    showBubble(pickLine(['헤헤 🐶', '좋아 좋아 🐾', '한 번 더!']), 1500);
+    showBubble(pickLine(['헤헤 🐶', '좋아 좋아 🐾', '한 번 더!']), 1500, 'happy');
   }
 }
 
@@ -343,7 +378,7 @@ document.addEventListener('mouseup', () => {
     saveHome();
     pet.classList.remove('dragging');
     suppressNextClick = true;
-    showBubble('여기가 좋아? 🏠', 1600);
+    showBubble('여기가 좋아? 🏠', 1600, 'happy');
     // restore mouse-event ignoring if cursor is no longer over the pet
     const r = pet.getBoundingClientRect();
     const insidePet =
@@ -367,9 +402,9 @@ pet.addEventListener('click', () => {
 
   if (state === 'bother') {
     stopBother();
-    showBubble('헤헤 🐶', 1800);
+    showBubble('헤헤 🐶', 1800, 'happy');
   } else {
-    showBubble(pickLine(['쓰담쓰담?', '🐾', '왈!', '히힛']), 1500);
+    showBubble(pickLine(['쓰담쓰담?', '🐾', '왈!', '히힛']), 1500, 'happy');
   }
 });
 
@@ -380,15 +415,24 @@ window.petAPI?.onToggleVisibility(() => {
   pet.classList.toggle('hidden-all');
 });
 
-// Claude Code (CLI) hook events forwarded from main's HTTP server
+// Claude Code (CLI) hook events forwarded from main's HTTP server.
+// Each hook gets its own bubble border color via the `tone` arg; see the
+// CSS `.tone-*` rules in style.css for the palette.
 window.petAPI?.onClaudeCodeStop((payload) => {
   const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
-  startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!');
+  startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!', false, 'success');
 });
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
   const msg = payload?.message;
-  startBother(msg ? `⚠️ ${msg}` : '⚠️ Claude Code 신호!');
+  startBother(msg ? `🔔 ${msg}` : '🔔 알림!', /* urgent */ true, 'info');
+});
+
+// PermissionRequest fires when an in-CLI permission dialog appears (e.g., "Allow
+// Claude to run lsof?"). This is the most user-blocking moment — urgent bother.
+window.petAPI?.onClaudeCodePermissionRequest((payload) => {
+  const tool = payload?.tool_name;
+  startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
 });
 
 // Boot
