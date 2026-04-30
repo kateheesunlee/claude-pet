@@ -1,6 +1,8 @@
-const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage, shell, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
+const os = require('os');
 const { execFile } = require('child_process');
 
 // Which app to bring to front when the user clicks the pet to "go to the
@@ -16,6 +18,7 @@ const TERMINAL_APP = process.env.CLAUDE_PET_TERMINAL_APP || null;
 const HOOK_PORT = 47625;
 
 let mainWindow = null;
+let onboardingWindow = null;
 let tray = null;
 let hookServer = null;
 let hookServerStatus = 'starting...';
@@ -206,6 +209,196 @@ ipcMain.on('stop-cursor-tracking', () => {
   cursorPollTimer = null;
 });
 
+// ===================================================================
+// Hook installer — writes Claude Code hook entries into settings.json
+// so users don't have to edit JSON manually.
+//
+// Format expected by Claude Code (matchers + hooks array):
+//   { "hooks": { "Stop": [{ "hooks": [{ "type":"command","command":"..." }] }] } }
+//
+// We tag every command we add with `# ${HOOK_MARKER}` so we can find
+// (and uninstall) our own entries without disturbing user-added ones.
+// ===================================================================
+
+const HOOK_MARKER = 'claudepet-hook-v1';
+
+// URL slug → settings.json event name
+// PreToolUse is included so the renderer can debounce "auto-approved"
+// permission checks — without it, pre-allowed tools would still trigger
+// the urgent alert.
+const HOOK_EVENTS = {
+  stop: 'Stop',
+  notification: 'Notification',
+  'permission-request': 'PermissionRequest',
+  'pre-tool-use': 'PreToolUse',
+};
+
+function buildHookCommand(slug) {
+  // `exit 0` keeps Claude Code unblocked even if our server is down.
+  // We use `cat` to forward the JSON payload (session_id, cwd, etc.) so
+  // the pet can deep-link / focus correctly.
+  const url = `http://127.0.0.1:${HOOK_PORT}/claude-code/${slug}`;
+  return (
+    `input=$(cat); printf '%s' "$input" | curl -sf -X POST ${url} ` +
+    `-H 'content-type: application/json' --max-time 5 -d @- ` +
+    `>/dev/null 2>&1; exit 0 # ${HOOK_MARKER}`
+  );
+}
+
+function settingsPathFor(scope) {
+  // scope: 'global' or absolute project directory path
+  if (scope === 'global') {
+    return path.join(os.homedir(), '.claude', 'settings.json');
+  }
+  return path.join(scope, '.claude', 'settings.json');
+}
+
+function readSettings(p) {
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') return {};
+    throw err;
+  }
+}
+
+function writeSettings(p, obj) {
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(obj, null, 2) + '\n');
+}
+
+function isOurEntry(entry) {
+  return Array.isArray(entry?.hooks) &&
+    entry.hooks.some((h) => typeof h?.command === 'string' && h.command.includes(HOOK_MARKER));
+}
+
+function checkHooks(scope) {
+  const p = settingsPathFor(scope);
+  let settings;
+  try {
+    settings = readSettings(p);
+  } catch (err) {
+    return { installed: false, path: p, error: err.message };
+  }
+  const allInstalled = Object.keys(HOOK_EVENTS).every((slug) => {
+    const entries = settings?.hooks?.[HOOK_EVENTS[slug]];
+    return Array.isArray(entries) && entries.some(isOurEntry);
+  });
+  return { installed: allInstalled, path: p };
+}
+
+function installHooks(scope) {
+  const p = settingsPathFor(scope);
+  let settings;
+  try {
+    settings = readSettings(p);
+  } catch (err) {
+    return { ok: false, error: `${p} 읽기 실패: ${err.message}`, path: p };
+  }
+
+  if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {};
+
+  let added = 0;
+  for (const [slug, eventName] of Object.entries(HOOK_EVENTS)) {
+    if (!Array.isArray(settings.hooks[eventName])) settings.hooks[eventName] = [];
+    if (settings.hooks[eventName].some(isOurEntry)) continue;
+    settings.hooks[eventName].push({
+      hooks: [{ type: 'command', command: buildHookCommand(slug) }],
+    });
+    added++;
+  }
+
+  try {
+    writeSettings(p, settings);
+  } catch (err) {
+    return { ok: false, error: `쓰기 실패: ${err.message}`, path: p };
+  }
+  return { ok: true, added, path: p };
+}
+
+function uninstallHooks(scope) {
+  const p = settingsPathFor(scope);
+  let settings;
+  try {
+    settings = readSettings(p);
+  } catch (err) {
+    if (err.code === 'ENOENT') return { ok: true, removed: 0, path: p };
+    return { ok: false, error: err.message, path: p };
+  }
+
+  if (!settings.hooks) return { ok: true, removed: 0, path: p };
+
+  let removed = 0;
+  for (const eventName of Object.values(HOOK_EVENTS)) {
+    const entries = settings.hooks[eventName];
+    if (!Array.isArray(entries)) continue;
+    const kept = entries.filter((e) => !isOurEntry(e));
+    removed += entries.length - kept.length;
+    if (kept.length === 0) delete settings.hooks[eventName];
+    else settings.hooks[eventName] = kept;
+  }
+
+  if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+  try {
+    writeSettings(p, settings);
+  } catch (err) {
+    return { ok: false, error: err.message, path: p };
+  }
+  return { ok: true, removed, path: p };
+}
+
+ipcMain.handle('hooks-check',     (_e, scope) => checkHooks(scope || 'global'));
+ipcMain.handle('hooks-install',   (_e, scope) => {
+  const r = installHooks(scope || 'global');
+  rebuildTrayMenu();
+  return r;
+});
+ipcMain.handle('hooks-uninstall', (_e, scope) => {
+  const r = uninstallHooks(scope || 'global');
+  rebuildTrayMenu();
+  return r;
+});
+
+function openOnboarding() {
+  // If already open, just bring it forward
+  if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+    onboardingWindow.show();
+    onboardingWindow.focus();
+    return;
+  }
+
+  onboardingWindow = new BrowserWindow({
+    width: 640,
+    height: 760,
+    minWidth: 520,
+    minHeight: 480,
+    resizable: true,         // Let the user resize if content gets long
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    title: 'Claude Pet — 시작하기',
+    backgroundColor: '#FBF7F4',
+    titleBarStyle: 'hiddenInset',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  onboardingWindow.loadFile(path.join(__dirname, 'renderer', 'onboarding.html'));
+  onboardingWindow.once('ready-to-show', () => onboardingWindow.show());
+  onboardingWindow.on('closed', () => { onboardingWindow = null; });
+}
+
+ipcMain.on('onboarding-done', () => {
+  if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+    onboardingWindow.close();
+  }
+});
+
 function buildTray() {
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
@@ -215,9 +408,16 @@ function buildTray() {
 
 function rebuildTrayMenu() {
   if (!tray) return;
+  const globalHookStatus = checkHooks('global');
   const menu = Menu.buildFromTemplate([
     {
-      label: `Hook: ${hookServerStatus}`,
+      label: `Hook server: ${hookServerStatus}`,
+      enabled: false,
+    },
+    {
+      label: globalHookStatus.installed
+        ? '훅 설정: ✓ 글로벌 설치됨'
+        : '훅 설정: ⚠️ 미설치',
       enabled: false,
     },
     { type: 'separator' },
@@ -244,6 +444,32 @@ function rebuildTrayMenu() {
         rebuildTrayMenu();
       },
     },
+    { type: 'separator' },
+    {
+      label: 'Onboarding 다시 보기…',
+      click: () => openOnboarding(),
+    },
+    globalHookStatus.installed
+      ? {
+          label: '글로벌 훅 제거…',
+          click: () => {
+            const r = uninstallHooks('global');
+            rebuildTrayMenu();
+            if (!r.ok) {
+              dialog.showErrorBox('훅 제거 실패', r.error || 'unknown');
+            }
+          },
+        }
+      : {
+          label: '글로벌 훅 자동 설정',
+          click: () => {
+            const r = installHooks('global');
+            rebuildTrayMenu();
+            if (!r.ok) {
+              dialog.showErrorBox('훅 설정 실패', r.error || 'unknown');
+            }
+          },
+        },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]);

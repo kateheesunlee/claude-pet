@@ -18,3 +18,15 @@ contextBridge.exposeInMainWorld('petAPI', {
   stopCursorTracking: () => ipcRenderer.send('stop-cursor-tracking'),
   onCursorPos: (cb) => ipcRenderer.on('cursor-pos', (_e, p) => cb(p)),
 });
+
+// Separate surface for the onboarding window — keeps it independent from petAPI
+// (the pet window doesn't need this, and the onboarding window doesn't need
+// the cursor-tracking / hook callbacks).
+contextBridge.exposeInMainWorld('claudePet', {
+  onboardingDone: () => ipcRenderer.send('onboarding-done'),
+  hooks: {
+    check:     (scope) => ipcRenderer.invoke('hooks-check',     scope),
+    install:   (scope) => ipcRenderer.invoke('hooks-install',   scope),
+    uninstall: (scope) => ipcRenderer.invoke('hooks-uninstall', scope),
+  },
+});

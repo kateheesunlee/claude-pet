@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Claude Pet — 시작하기</title>
+  <!-- Reuse the real pet styles so the onboarding shows the SAME dog. -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+  <div class="window">
+    <!-- Top progress dots -->
+    <div class="progress" id="progress">
+      <span class="dot active" data-step="0"></span>
+      <span class="dot" data-step="1"></span>
+      <span class="dot" data-step="2"></span>
+      <span class="dot" data-step="3"></span>
+      <span class="dot" data-step="4"></span>
+    </div>
+
+    <!-- ====================== STEP 0 — Welcome ====================== -->
+    <section class="step active" data-step="0">
+      <div class="hero">
+        <!-- Real pet DOM (matches renderer/index.html), scaled down via .pet-frame -->
+        <div class="pet-frame">
+          <div id="pet-hero" class="state-idle">
+            <div id="dog">
+              <div class="ear ear-left"></div>
+              <div class="ear ear-right"></div>
+              <div class="head">
+                <div class="sparkle">
+                  <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M12 2 L13.5 10.5 L22 12 L13.5 13.5 L12 22 L10.5 13.5 L2 12 L10.5 10.5 Z" fill="#fff" />
+                  </svg>
+                </div>
+                <div class="eye eye-left"><div class="pupil"></div></div>
+                <div class="eye eye-right"><div class="pupil"></div></div>
+                <div class="snout">
+                  <div class="nose"></div>
+                  <div class="mouth"></div>
+                  <div class="tongue"></div>
+                </div>
+                <div class="cheek cheek-left"></div>
+                <div class="cheek cheek-right"></div>
+              </div>
+              <div class="body">
+                <div class="paw paw-left"></div>
+                <div class="paw paw-right"></div>
+                <div class="tail"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-bubble">왈! 만나서 반가워요 🐾</div>
+      </div>
+
+      <h1>안녕, 나는 <span class="brand">클로드 펫</span>이야</h1>
+      <p class="lead">
+        Claude Code가 응답을 마치거나 권한을 물어볼 때<br />
+        쪼르르 따라와서 알려주는 작은 데스크탑 친구예요.
+      </p>
+
+      <div class="feat-grid">
+        <div class="feat tone-success">
+          <div class="feat-icon">✅</div>
+          <div class="feat-title">응답 완료</div>
+          <div class="feat-desc">녹색 말풍선으로 살짝 알림</div>
+        </div>
+        <div class="feat tone-urgent">
+          <div class="feat-icon">🚨</div>
+          <div class="feat-title">권한 요청</div>
+          <div class="feat-desc">빨간 말풍선으로 강하게 보챔</div>
+        </div>
+        <div class="feat tone-info">
+          <div class="feat-icon">🔔</div>
+          <div class="feat-title">일반 알림</div>
+          <div class="feat-desc">파란 말풍선으로 가볍게 톡톡</div>
+        </div>
+        <div class="feat tone-happy">
+          <div class="feat-icon">🩷</div>
+          <div class="feat-title">쓰담쓰담</div>
+          <div class="feat-desc">놀아주면 배 뒤집고 하트 뿅뿅</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-ghost" data-skip>나중에</button>
+        <button class="btn-primary" data-next>시작하기 →</button>
+      </div>
+    </section>
+
+    <!-- ====================== STEP 1 — Accessibility 권한 ====================== -->
+    <section class="step" data-step="1">
+      <div class="step-icon-wrap">
+        <div class="step-icon">🔓</div>
+      </div>
+      <h2>먼저, <span class="brand">손쉬운 사용</span> 권한이 필요해요</h2>
+      <p class="lead muted">
+        펫이 화면 위에 떠 있으려면 macOS의 <b>Accessibility 권한</b>이 필요해요.<br />
+        커서 위치를 따라가거나 클로드 윈도우 상태를 살피기 위함이에요.
+      </p>
+
+      <div class="permission-card">
+        <div class="perm-row">
+          <div class="perm-num">1</div>
+          <div class="perm-text">
+            첫 실행 시 macOS가 띄우는 권한 다이얼로그에서 <b>"허용"</b>을 눌러주세요.
+          </div>
+        </div>
+        <div class="perm-divider"></div>
+        <div class="perm-row">
+          <div class="perm-num">2</div>
+          <div class="perm-text">
+            놓치셨다면 <b>시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용</b>에서<br />
+            <code>Electron</code> 항목을 켜주세요.
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="callout-icon">💡</span>
+        <span>토글을 켠 후엔 펫을 한 번 재시작해야 적용돼요.</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-ghost" data-prev>← 이전</button>
+        <button class="btn-primary" data-next>설정 완료 →</button>
+      </div>
+    </section>
+
+    <!-- ====================== STEP 2 — Hook 연동 ====================== -->
+    <section class="step" data-step="2">
+      <div class="step-icon-wrap">
+        <div class="step-icon">🪝</div>
+      </div>
+      <h2>Claude Code <span class="brand">훅</span> 연동하기</h2>
+      <p class="lead muted">
+        펫의 진짜 가치는 여기서 나와요. 아래 3가지 훅을 연결하면<br />
+        Claude의 모든 신호를 펫이 시각적으로 알려줘요.
+      </p>
+
+      <div class="hook-list">
+        <div class="hook-row">
+          <div class="hook-tag tag-success">Stop</div>
+          <div class="hook-desc">응답이 끝났을 때 — 🟢 녹색</div>
+        </div>
+        <div class="hook-row">
+          <div class="hook-tag tag-info">Notification</div>
+          <div class="hook-desc">macOS 알림이 떴을 때 — 🔵 파랑</div>
+        </div>
+        <div class="hook-row">
+          <div class="hook-tag tag-urgent">PermissionRequest</div>
+          <div class="hook-desc">권한 다이얼로그가 떴을 때 — 🔴 빨강</div>
+        </div>
+      </div>
+
+      <!-- Status banner — updated by JS via window.claudePet.hooks.check() -->
+      <div class="hook-status" id="hookStatus" data-state="loading">
+        <span class="hook-status-icon">⏳</span>
+        <span class="hook-status-text">상태 확인 중…</span>
+      </div>
+
+      <div class="hook-actions">
+        <button class="btn-primary" id="installGlobalBtn">
+          ✨ 자동 설정하기
+        </button>
+      </div>
+
+      <details class="advanced">
+        <summary>수동으로 설정하기 (고급)</summary>
+        <p class="advanced-note">
+          아래 내용을 <code>~/.claude/settings.json</code>에 직접 추가하세요.
+        </p>
+        <div class="code-block">
+          <div class="code-head">
+            <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+            <span class="code-title">.claude/settings.json</span>
+            <button class="code-copy" id="copyBtn">복사</button>
+          </div>
+<pre><code>{
+  "hooks": {
+    "Stop": [{ "hooks": [{ "type": "command",
+      "command": "input=$(cat); printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/stop -H 'content-type: application/json' --max-time 5 -d @- &gt;/dev/null 2&gt;&amp;1; exit 0" }]}],
+    "Notification": [{ "hooks": [{ "type": "command",
+      "command": "input=$(cat); printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/notification -H 'content-type: application/json' --max-time 5 -d @- &gt;/dev/null 2&gt;&amp;1; exit 0" }]}],
+    "PermissionRequest": [{ "hooks": [{ "type": "command",
+      "command": "input=$(cat); printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/permission-request -H 'content-type: application/json' --max-time 5 -d @- &gt;/dev/null 2&gt;&amp;1; exit 0" }]}]
+  }
+}</code></pre>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button class="btn-ghost" data-prev>← 이전</button>
+        <button class="btn-primary" data-next>다음 →</button>
+      </div>
+    </section>
+
+    <!-- ====================== STEP 3 — 인터랙션 가이드 ====================== -->
+    <section class="step" data-step="3">
+      <div class="step-icon-wrap">
+        <div class="step-icon">🐾</div>
+      </div>
+      <h2>펫과 <span class="brand">친해지기</span></h2>
+      <p class="lead muted">아래는 펫이 알아듣는 인사들이에요.</p>
+
+      <div class="interaction-grid">
+        <div class="ix-card">
+          <div class="ix-emoji">🖱️</div>
+          <div class="ix-action">호버</div>
+          <div class="ix-result">자고 있던 펫이 깸</div>
+        </div>
+        <div class="ix-card">
+          <div class="ix-emoji">👆🏻</div>
+          <div class="ix-action">클릭</div>
+          <div class="ix-result">알림 직후엔 클로드로 점프, 평소엔 답례</div>
+        </div>
+        <div class="ix-card">
+          <div class="ix-emoji">↔️</div>
+          <div class="ix-action">드래그</div>
+          <div class="ix-result">새 위치로 이동 — 영구 홈으로 저장</div>
+        </div>
+        <div class="ix-card">
+          <div class="ix-emoji">👋🏻</div>
+          <div class="ix-action">좌우 휘젓기 ×3</div>
+          <div class="ix-result">쓰담쓰담 모드 — 배 뒤집고 하트 뿅뿅</div>
+        </div>
+      </div>
+
+      <div class="states-row">
+        <div class="state-pill"><span class="bullet" style="background:#22c55e"></span>idle</div>
+        <div class="state-pill"><span class="bullet" style="background:#D97757"></span>bother</div>
+        <div class="state-pill"><span class="bullet" style="background:#ec4899"></span>petted</div>
+        <div class="state-pill"><span class="bullet" style="background:#94a3b8"></span>sleeping</div>
+        <div class="state-pill"><span class="bullet" style="background:#ef4444"></span>urgent</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-ghost" data-prev>← 이전</button>
+        <button class="btn-primary" data-next>거의 다 됐어요 →</button>
+      </div>
+    </section>
+
+    <!-- ====================== STEP 4 — Done ====================== -->
+    <section class="step" data-step="4">
+      <div class="celebrate">
+        <div class="confetti">🎉</div>
+        <!-- Same pet as hero, but in petted state — squinty happy eyes + hearts -->
+        <div class="pet-frame wiggle">
+          <div id="pet-finish" class="state-petted">
+            <div id="hearts">
+              <span>♥</span><span>♥</span><span>♥</span><span>♥</span>
+            </div>
+            <div id="dog">
+              <div class="ear ear-left"></div>
+              <div class="ear ear-right"></div>
+              <div class="head">
+                <div class="sparkle">
+                  <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M12 2 L13.5 10.5 L22 12 L13.5 13.5 L12 22 L10.5 13.5 L2 12 L10.5 10.5 Z" fill="#fff" />
+                  </svg>
+                </div>
+                <div class="eye eye-left"><div class="pupil"></div></div>
+                <div class="eye eye-right"><div class="pupil"></div></div>
+                <div class="snout">
+                  <div class="nose"></div>
+                  <div class="mouth"></div>
+                  <div class="tongue"></div>
+                </div>
+                <div class="cheek cheek-left"></div>
+                <div class="cheek cheek-right"></div>
+              </div>
+              <div class="body">
+                <div class="paw paw-left"></div>
+                <div class="paw paw-right"></div>
+                <div class="tail"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h1>준비 완료!</h1>
+      <p class="lead">
+        이제 화면 한 켠에서 같이 일해요.<br />
+        가끔 쓰다듬어 주세요 — 외로워해요. 🐶
+      </p>
+
+      <div class="tip-card">
+        <b>🎛 트레이 메뉴 (메뉴바 🐶)</b>에서<br />
+        <code>Bother now</code> · <code>Sleep now</code> · <code>Demo timer</code>를 켤 수 있어요.
+      </div>
+
+      <div class="actions center">
+        <button class="btn-primary big" data-finish>펫과 놀러가기 🐾</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="onboarding.js"></script>
+</body>
+</html>

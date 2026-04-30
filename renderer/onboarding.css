@@ -1,0 +1,736 @@
+:root {
+  --claude-coral: #D97757;
+  --claude-coral-dark: #B85A3F;
+  --claude-coral-light: #E89478;
+  --claude-cream: #FBF7F4;
+  --claude-cream-2: #F5EDE6;
+  --ink: #2a1810;
+  --ink-2: #5b4a3f;
+  --ink-3: #9a8a7d;
+  --tone-success: #22c55e;
+  --tone-info: #3b82f6;
+  --tone-urgent: #ef4444;
+  --tone-happy: #ec4899;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow-soft: 0 10px 32px rgba(217, 119, 87, 0.10), 0 2px 6px rgba(42, 24, 16, 0.05);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 14px rgba(42, 24, 16, 0.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* IMPORTANT: this page imports style.css (the pet's stylesheet) so the
+   onboarding mini-pet renders identically to the real pet. style.css
+   locks `html, body` to `height: 100%; overflow: hidden;` because the
+   pet window is a floating overlay that must not scroll. We have to
+   explicitly UNDO those rules here, otherwise the onboarding window
+   clips its own content and never scrolls. */
+html, body {
+  width: 100%;
+  height: auto;            /* override style.css height: 100% */
+  overflow: visible;       /* override style.css overflow: hidden */
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  color: var(--ink);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  cursor: auto;            /* override style.css cursor: default */
+}
+
+/* Background lives on html so it covers the whole scrollable canvas,
+   not just the initial viewport. */
+html {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 600px at 80% -10%, rgba(217, 119, 87, 0.18), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, rgba(236, 72, 153, 0.10), transparent 60%),
+    var(--claude-cream);
+  overflow-y: auto;        /* document-level scroll lives here */
+}
+
+/* Plain block layout — no flex centering. Guaranteed-scrollable: when
+   .window grows past the viewport, the document just scrolls.
+   Horizontal centering via auto margins on .window. */
+body {
+  padding: 32px 16px;
+  margin: 0;
+  background: transparent; /* let html's gradient show through */
+}
+
+/* ============== Window shell ============== */
+.window {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;            /* horizontal center */
+  background: white;
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+  padding: 36px 40px 32px;
+  position: relative;
+  overflow: hidden;          /* clips ::before gradient overlay only */
+}
+
+.window::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(217,119,87,0.06), transparent 30%);
+  pointer-events: none;
+}
+
+/* ============== Progress dots ============== */
+.progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.progress .dot {
+  width: 8px;
+  height: 8px;
+  background: #e8dfd6;
+  border-radius: 50%;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.progress .dot.active {
+  background: var(--claude-coral);
+  width: 26px;
+  border-radius: 6px;
+}
+
+.progress .dot.done {
+  background: var(--claude-coral-light);
+}
+
+/* ============== Steps ============== */
+.step {
+  display: none;
+  animation: stepIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+
+.step.active { display: block; }
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  color: var(--ink);
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+
+.brand {
+  color: var(--claude-coral);
+}
+
+.lead {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin-bottom: 24px;
+}
+
+.lead.muted { color: var(--ink-3); }
+
+/* ============== Hero (welcome) ============== */
+.hero {
+  position: relative;
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.hero-bubble {
+  position: absolute;
+  top: 0;
+  right: 22%;
+  background: white;
+  border: 2px solid var(--claude-coral);
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.18);
+  animation: bubbleBob 1.8s ease-in-out infinite;
+}
+
+.hero-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 18px;
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid var(--claude-coral);
+}
+
+@keyframes bubbleBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* ============== Pet frame (reuses real pet DOM from style.css) ============== */
+/* style.css positions #pet absolutely (bottom/right) — that doesn't work
+   here, so we re-anchor it via #pet-hero / #pet-finish overrides. The pet
+   itself (head/body/ears/etc.) inherits all the original animations and
+   proportions, so no more "evil bear" face. */
+.pet-frame {
+  position: relative;
+  width: 140px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+#pet-hero,
+#pet-finish {
+  position: relative;
+  bottom: auto;
+  right: auto;
+  width: 140px;
+  height: 140px;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pet-frame.wiggle { animation: petWiggle 0.7s ease-in-out infinite; }
+
+@keyframes petWiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+
+/* ============== Welcome feature grid ============== */
+.feat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.feat {
+  background: var(--claude-cream);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  align-items: center;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.feat:hover {
+  transform: translateY(-2px);
+  border-color: var(--claude-coral-light);
+}
+
+.feat-icon {
+  grid-row: 1 / span 2;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.feat-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.feat-desc {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.feat.tone-success { background: #ecfdf5; }
+.feat.tone-urgent  { background: #fef2f2; }
+.feat.tone-info    { background: #eff6ff; }
+.feat.tone-happy   { background: #fdf2f8; }
+
+/* ============== Step icon (steps 1–3) ============== */
+.step-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.step-icon {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 72px;
+  line-height: 1;
+  /* Subtle soft shadow to give depth without a container */
+  filter: drop-shadow(0 4px 10px rgba(217, 119, 87, 0.25));
+  animation: iconFloat 3.2s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-4px) rotate(2deg); }
+}
+
+/* ============== Permission card (step 1) ============== */
+.permission-card {
+  background: var(--claude-cream);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.perm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.perm-num {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--claude-coral);
+  color: var(--claude-coral);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 1px;
+}
+
+.perm-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.perm-text b { color: var(--ink); font-weight: 700; }
+
+.perm-divider {
+  height: 1px;
+  background: rgba(217, 119, 87, 0.15);
+  margin: 14px 0;
+}
+
+/* ============== Hook list (step 2) ============== */
+.hook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.hook-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--claude-cream);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.hook-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.tag-success { background: #dcfce7; color: #166534; }
+.tag-info    { background: #dbeafe; color: #1e40af; }
+.tag-urgent  { background: #fee2e2; color: #991b1b; }
+
+.hook-desc {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ============== Hook status banner (step 2) ============== */
+.hook-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.25s ease;
+}
+
+.hook-status[data-state="loading"] {
+  background: var(--claude-cream);
+  color: var(--ink-3);
+}
+.hook-status[data-state="missing"] {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+.hook-status[data-state="installed"] {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+.hook-status[data-state="error"] {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.hook-status-icon { font-size: 16px; }
+
+.hook-actions {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.hook-actions .btn-primary {
+  flex: 1;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ============== Advanced details ============== */
+.advanced {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  padding: 8px 0;
+  user-select: none;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.advanced summary::-webkit-details-marker { display: none; }
+
+.advanced summary::before {
+  content: '▸';
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 10px;
+}
+
+.advanced[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.advanced summary:hover { color: var(--ink-2); }
+
+.advanced-note {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+
+/* ============== Code block (step 2) ============== */
+.code-block {
+  background: #1d1410;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+  text-align: left;
+  box-shadow: 0 6px 20px rgba(29, 20, 16, 0.18);
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.code-head .dot-r,
+.code-head .dot-y,
+.code-head .dot-g {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+}
+.code-head .dot-r { background: #ff5f57; }
+.code-head .dot-y { background: #febc2e; }
+.code-head .dot-g { background: #28c840; }
+
+.code-title {
+  flex: 1;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.5);
+  font-family: ui-monospace, 'SF Mono', monospace;
+  margin-left: 8px;
+}
+
+.code-copy {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.code-copy:hover { background: rgba(255, 255, 255, 0.16); }
+.code-copy.copied { background: var(--tone-success); color: white; }
+
+.code-block pre {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+}
+
+.code-block code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #f0e6dd;
+  white-space: pre;
+}
+
+/* ============== Callout ============== */
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: #9a3412;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.callout.subtle {
+  background: var(--claude-cream);
+  border-color: rgba(217, 119, 87, 0.2);
+  color: var(--ink-2);
+}
+
+.callout-icon { flex-shrink: 0; }
+
+code {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  background: rgba(217, 119, 87, 0.12);
+  color: var(--claude-coral-dark);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.callout code {
+  background: rgba(154, 52, 18, 0.1);
+  color: #9a3412;
+}
+
+/* ============== Interaction grid (step 3) ============== */
+.interaction-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.ix-card {
+  background: var(--claude-cream);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.ix-card:hover {
+  transform: translateY(-2px);
+  background: white;
+  box-shadow: var(--shadow-card);
+}
+
+.ix-emoji {
+  grid-row: 1 / span 2;
+  font-size: 26px;
+  display: flex; align-items: center;
+}
+
+.ix-action {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ix-result {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+/* ============== States row ============== */
+.states-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: white;
+  border: 1px solid #ece3da;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.bullet {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ============== Done step ============== */
+.celebrate {
+  position: relative;
+  height: 170px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.confetti {
+  position: absolute;
+  top: 4px; left: 30%;
+  font-size: 28px;
+  animation: confettiSpin 2.4s ease-in-out infinite;
+}
+
+@keyframes confettiSpin {
+  0%   { transform: rotate(-15deg) translateY(0); }
+  50%  { transform: rotate(15deg) translateY(-8px); }
+  100% { transform: rotate(-15deg) translateY(0); }
+}
+
+.tip-card {
+  background: var(--claude-cream);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  margin-bottom: 24px;
+  border: 1px solid rgba(217, 119, 87, 0.12);
+}
+
+.tip-card b { color: var(--claude-coral-dark); font-weight: 700; }
+
+/* ============== Buttons ============== */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actions.center { justify-content: center; }
+
+.btn-primary,
+.btn-ghost {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: none;
+  letter-spacing: -0.01em;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--claude-coral) 0%, var(--claude-coral-dark) 100%);
+  color: white;
+  box-shadow: 0 6px 18px rgba(217, 119, 87, 0.32);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(217, 119, 87, 0.42);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 10px rgba(217, 119, 87, 0.32);
+}
+
+.btn-primary.big {
+  padding: 14px 28px;
+  font-size: 15px;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-3);
+}
+
+.btn-ghost:hover {
+  background: var(--claude-cream);
+  color: var(--ink-2);
+}
