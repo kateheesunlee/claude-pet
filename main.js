@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage, shell } = require('electron');
 const path = require('path');
 const http = require('http');
 const { execFile } = require('child_process');
@@ -63,10 +63,17 @@ function createWindow() {
   }
 }
 
+// Matches Claude Code's session_id format (RFC 4122 UUID).
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Spacing between the activate / deep-link / re-activate steps. ~120ms is
+// empirically enough for the activate's Apple Event to land before the URL
+// handler runs, and for the URL handler to settle before we re-foreground.
+const FOCUS_STEP_DELAY_MS = 120;
+
 ipcMain.on('focus-claude-session', (_event, info) => {
-  // info: { cwd, sessionId } from the most recent hook payload. sessionId
-  // is unused for now (kept in the IPC for future deep-link experiments).
-  const { cwd } = info || {};
+  // info: { cwd, sessionId } from the most recent hook payload.
+  const { cwd, sessionId } = info || {};
 
   // Terminal/editor mode (CLAUDE_PET_TERMINAL_APP set) — open cwd in that app
   if (TERMINAL_APP) {
@@ -80,32 +87,81 @@ ipcMain.on('focus-claude-session', (_event, info) => {
     return;
   }
 
-  // Default: bring Claude Desktop to the front. Deep-linking to the specific
-  // session via `claude://resume?session=<uuid>` was tried but it navigates
-  // to a previously-imported Desktop conversation rather than the current
-  // active one — confusing UX. Reverted to just app-level focus until we
-  // find a route that targets the live conversation.
+  // Default: bring Claude Desktop to the front, then deep-link the session.
+  //
+  // ORDER MATTERS. `activateClaudeDesktop()` issues the Apple Events that
+  // switch Spaces (incl. fullscreen) and unminimize the Dock-stashed window.
+  // Those events MUST land before the URL apple event from
+  // `shell.openExternal`, otherwise the URL's own (weak, current-Space)
+  // activation races against ours and the cross-fullscreen-Space switch
+  // silently loses. ~120ms is enough for the activate to take effect on the
+  // systems tested without being perceptibly laggy.
+  //
+  // Caveat about `claude://resume?session=<uuid>`: Claude Desktop's URL
+  // handler imports the CLI session as a `local_<uuid>` sidebar entry. If
+  // the user is ALREADY running Claude Code inside Claude Desktop's CC pane
+  // for that same session_id, the import coexists with the live entry and
+  // the user sees their messages flow in two views of the same JSONL.
+  // We're keeping the deep-link anyway because session-precise navigation
+  // is more valuable than avoiding the duplicate entry.
   console.log('[focus] activate Claude');
   activateClaudeDesktop();
+  if (sessionId && typeof sessionId === 'string' && SESSION_ID_RE.test(sessionId)) {
+    const url = `claude://resume?session=${sessionId}`;
+    setTimeout(() => {
+      console.log(`[focus] openExternal ${url}`);
+      shell.openExternal(url).catch((err) => {
+        console.error('[focus] openExternal failed:', err?.message || err);
+      });
+      // Re-activate AFTER the URL settles. In a fullscreen Space the URL
+      // handler can silently kick focus back off — observed: deep link
+      // delivers (target session is correct on manual open), but the window
+      // never came forward. A second activate post-URL pulls it back.
+      setTimeout(() => {
+        console.log('[focus] re-activate Claude (post deep-link)');
+        activateClaudeDesktop();
+      }, FOCUS_STEP_DELAY_MS);
+    }, FOCUS_STEP_DELAY_MS);
+  }
 });
 
-// Bring Claude.app to the foreground without starting a fresh instance.
+// Bring Claude.app fully forward — across Spaces (incl. fullscreen) and out
+// of the Dock if minimized — without spawning a fresh instance.
 //
-// Two parallel calls:
+// Three mechanisms, because no single one covers every state:
 //
-//   1. `open -a Claude` — the standard "launch if not running, activate if
-//      running" path. Reliably brings a window to the foreground for the
+//   1. `open -a Claude` — the standard launch/activate path. Handles the
 //      ordinary cases (cmd+H hidden, in another non-fullscreen Space).
 //
-//   2. `osascript "tell ... to activate"` — Apple Event that makes the
-//      WindowServer switch to whichever Space the app's frontmost window
-//      is on, including fullscreen Spaces. `open -a` alone sometimes
-//      doesn't cross fullscreen Space boundaries.
+//   2. `osascript "tell <app> to activate"` — Apple Event that makes the
+//      WindowServer switch to whichever Space the app's frontmost window is
+//      on, INCLUDING a fullscreen Space. `open -a` alone doesn't reliably
+//      cross fullscreen Space boundaries.
 //
-// We previously also ran `open -n -a Claude` to trigger the second-instance
-// handler (intended to pull Dock-minimized windows out), but it was observed
-// to actually spawn a fresh instance instead — removed. Dock-minimize can
-// be revisited with a different mechanism (e.g. AXUIElement) if it comes up.
+//   3. System Events AX call to clear `AXMinimized` on every Claude window
+//      that has it set. The Apple Event scripting suite path
+//      (`set miniaturized of windows to false`) returns -10006 because
+//      Claude.app doesn't implement that suite (Electron). Going through
+//      the accessibility process bypasses the app's missing dictionary —
+//      it pokes the windows via the AX layer instead. Requires
+//      Accessibility permission for the pet (separate from Automation);
+//      first invocation will trigger the system prompt. Wrapped in `try`
+//      so a missing permission or a not-yet-running app falls through
+//      silently rather than spamming the console.
+//
+// (We previously tried `open -n -a Claude` to trigger the second-instance
+// handler — which DOES call win.restore() — but on some configurations it
+// spawned a parallel instance instead. AX is the reliable path.)
+const ACTIVATE_APPLESCRIPT =
+  'tell application "Claude" to activate\n' +
+  'try\n' +
+  '  tell application "System Events"\n' +
+  '    tell process "Claude"\n' +
+  '      set value of attribute "AXMinimized" of (windows whose value of attribute "AXMinimized" is true) to false\n' +
+  '    end tell\n' +
+  '  end tell\n' +
+  'end try';
+
 function activateClaudeDesktop() {
   execFile(
     'open', ['-a', 'Claude'],
@@ -115,7 +171,7 @@ function activateClaudeDesktop() {
     },
   );
   execFile(
-    'osascript', ['-e', 'tell application "Claude" to activate'],
+    'osascript', ['-e', ACTIVATE_APPLESCRIPT],
     { timeout: 3000 },
     (err, _stdout, stderr) => {
       if (err) console.error('[focus] activate failed:', (stderr || '').trim() || err.message);
