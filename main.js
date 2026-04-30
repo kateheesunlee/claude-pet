@@ -223,14 +223,17 @@ ipcMain.on('stop-cursor-tracking', () => {
 const HOOK_MARKER = 'claudepet-hook-v1';
 
 // URL slug → settings.json event name
-// PreToolUse is included so the renderer can debounce "auto-approved"
-// permission checks — without it, pre-allowed tools would still trigger
-// the urgent alert.
+// PostToolUse is the heartbeat we use to cancel false-positive permission
+// urgents — for auto-approved tools it arrives within ms of the
+// PermissionRequest, but for actually-blocking ones it only arrives after
+// the user clicks through the dialog. (PreToolUse is wired too but fires
+// BEFORE PermissionRequest in Claude Code's order, so it can't cancel.)
 const HOOK_EVENTS = {
   stop: 'Stop',
   notification: 'Notification',
   'permission-request': 'PermissionRequest',
   'pre-tool-use': 'PreToolUse',
+  'post-tool-use': 'PostToolUse',
 };
 
 function buildHookCommand(slug) {
@@ -506,10 +509,17 @@ function dispatchHook(url, payload, res) {
     console.log('[hook] PermissionRequest', payload?.tool_name || payload?.session_id?.slice(0, 8) || '');
     mainWindow.webContents.send('claude-code-permission-request', payload);
   } else if (url === '/claude-code/pre-tool-use') {
-    // PreToolUse is used as a "Claude is still working" heartbeat — the
-    // renderer uses it to cancel a pending urgent that turned out to be
-    // auto-approved. We don't log it to keep the console clean.
+    // PreToolUse fires BEFORE PermissionRequest in Claude Code's hook
+    // ordering, so it can't cancel a pending urgent — kept here for
+    // completeness / future use, but the actual debouncer relies on
+    // PostToolUse instead.
     mainWindow.webContents.send('claude-code-pre-tool-use', payload);
+  } else if (url === '/claude-code/post-tool-use') {
+    // PostToolUse = tool actually executed. For auto-approved tools this
+    // arrives within milliseconds of PermissionRequest; for blocking ones
+    // it only arrives after the user clicks Allow. The renderer uses this
+    // to cancel a pending urgent before the user sees a false alert.
+    mainWindow.webContents.send('claude-code-post-tool-use', payload);
   } else {
     res.writeHead(404); res.end();
     return;

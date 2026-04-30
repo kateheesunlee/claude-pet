@@ -49,13 +49,16 @@ CLAUDE_PET_DEVTOOLS=1 npm run dev # + 렌더러 DevTools 열림
 4. 추가 후 토글 ON, 펫 재시작
 
 ### Claude Code 훅 연결 (핵심)
-펫이 진짜로 유용해지려면 Claude Code의 hook을 펫의 HTTP 서버(`localhost:47625`)에 연결해야 합니다. 프로젝트의 [`.claude/settings.json`](.claude/settings.json)에 이미 셋업되어 있어요:
+펫이 진짜로 유용해지려면 Claude Code의 hook을 펫의 HTTP 서버(`localhost:47625`)에 연결해야 합니다. **첫 실행 시 뜨는 온보딩 화면의 "✨ 자동 설정하기" 버튼 한 번**이면 끝나요.
 
-- **Stop** → 응답 완료 시 펫 알림
+자동 설정은 글로벌 `~/.claude/settings.json`에 다음 5개 hook을 추가합니다 (마커 `# claudepet-hook-v1`로 태깅돼서 나중에 깨끗이 제거 가능):
+
+- **Stop** → 응답 완료 시 펫이 💬로 알림
 - **Notification** → macOS 레벨 알림 시 펫 알림
-- **PermissionRequest** → 권한 다이얼로그 뜰 때 펫 알림 (가장 중요!)
+- **PermissionRequest** → 권한 다이얼로그 뜰 때 펫이 🚨 빨갛게 보챔
+- **PreToolUse / PostToolUse** → 자동 승인된 권한 체크는 urgent로 안 뜨게 디바운스용
 
-다른 프로젝트에서도 사용하고 싶으면 같은 설정을 `~/.claude/settings.json`(글로벌)이나 해당 프로젝트의 `.claude/settings.json`에 복사하세요.
+온보딩을 다시 보거나 훅을 제거하려면 트레이의 🐶 메뉴에서 **`Onboarding 다시 보기…`** / **`글로벌 훅 제거…`**.
 
 ---
 
@@ -65,7 +68,7 @@ CLAUDE_PET_DEVTOOLS=1 npm run dev # + 렌더러 DevTools 열림
 
 | 이벤트 | Bubble 색 | 메시지 예시 | 발동 조건 | 긴급도 |
 |---|---|---|---|---|
-| 응답 완료 | 🟢 녹색 | `✅ ClaudePet 끝!` | Claude Code `Stop` 훅 | 일반 (8초) |
+| 응답 완료 | 🟢 녹색 | `💬 ClaudePet 답장 왔어!` | Claude Code `Stop` 훅 | 일반 (8초) |
 | 권한 요청 | 🔴 빨강 | `🚨 Bash 허락해줘!` | Claude Code `PermissionRequest` 훅 | **Urgent** (10분 안전 타이머) |
 | 일반 알림 | 🔵 파랑 | `🔔 <메시지>` | Claude Code `Notification` 훅 | Urgent |
 | 일반 bother | 🟠 코랄 | `야! 놀아줘 🐾` | 트레이 "Bother now" / Demo timer | 일반 |
@@ -124,9 +127,9 @@ CLAUDE_PET_DEVTOOLS=1 npm run dev # + 렌더러 DevTools 열림
 ```
 Claude Code (CLI)
        │
-       │ 훅 발화 (Stop / Notification / PermissionRequest)
+       │ 훅 발화 (Stop / Notification / PermissionRequest / PreToolUse / PostToolUse)
        ▼
-   [.claude/settings.json hook]
+   [~/.claude/settings.json hook] ← 온보딩 자동 설치
        │
        │ curl POST http://127.0.0.1:47625/claude-code/<event>
        ▼
@@ -144,15 +147,19 @@ Claude Code (CLI)
 ### 파일 구조
 ```
 ClaudePet/
-├── main.js                       # Electron 메인 + 훅 HTTP 서버 + 트레이
+├── main.js                       # Electron 메인 + 훅 HTTP 서버 + 자동 인스톨러 + 트레이
 ├── preload.js                    # Renderer ↔ 메인 IPC 브릿지
 ├── renderer/
 │   ├── index.html                # 강아지 DOM 구조
 │   ├── pet.js                    # 상태 머신, 마우스/훅 처리, 애니메이션
-│   └── style.css                 # 강아지 모양 + bubble 톤 시스템
-├── .claude/settings.json         # Claude Code 훅 설정 (curl POST)
+│   ├── style.css                 # 강아지 모양 + bubble 톤 시스템
+│   ├── onboarding.html           # 첫 실행 온보딩 5단계
+│   ├── onboarding.css            # 온보딩 스타일
+│   └── onboarding.js             # 단계 네비 + 자동 인스톨 wiring
 └── .claude/skills/test-pet/      # /test-pet 스킬 (3초 후 테스트 메시지)
 ```
+
+> 글로벌 hook은 첫 실행 시 온보딩에서 `~/.claude/settings.json`에 자동 설치돼요. 프로젝트 안에 별도 `.claude/settings.json`은 두지 않아요 (글로벌 한 곳에서만 관리).
 
 ---
 
@@ -168,7 +175,9 @@ curl -X POST http://127.0.0.1:47625/claude-code/stop \
 응답 `{"ok":true}`와 함께 펫이 녹색 말풍선으로 따라와야 정상.
 
 ### Hook 로그 확인
-모든 hook 이벤트는 `/tmp/claude-pet-hook.log`에 기록됩니다:
+자동 설치된 글로벌 hook은 조용히 동작해요 (성능 위해 로그 안 남김). 디버깅 중 페이로드를 보고 싶으면 `npm run dev`로 띄우면 메인 프로세스 콘솔에 `[hook] Stop ...` 같은 요약이 찍혀요.
+
+전체 JSON 페이로드까지 보고 싶으면 프로젝트 단위로 `.claude/settings.local.json` (gitignored)에 로깅 hook을 임시로 추가해서 `/tmp/claude-pet-hook.log`에 적립할 수 있어요:
 ```bash
 tail -f /tmp/claude-pet-hook.log
 ```

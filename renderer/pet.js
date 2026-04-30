@@ -450,8 +450,11 @@ window.petAPI?.onClaudeCodeStop((payload) => {
   // not blocking. Drop the pending urgent before we transition to the
   // success-tone bother for "done".
   cancelPendingPermission();
+  // Stop = Claude finished a response. Earlier copy ("✅ X 끝!") read like
+  // the pet itself was shutting down — confusing. New copy makes it clear
+  // a reply has just landed.
   const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
-  startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!', false, 'success');
+  startBother(cwd ? `💬 ${cwd} 답장 왔어!` : '💬 Claude 답장 왔어!', false, 'success');
 });
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
@@ -488,11 +491,21 @@ window.petAPI?.onClaudeCodeNotification((payload) => {
 // actually being prompted, so a naive implementation alerts the user even when
 // no action is needed.
 //
-// Strategy: defer the urgent display by PERMISSION_DEBOUNCE_MS. If during that
-// window Claude continues working (next PreToolUse, another PermissionRequest,
-// or Stop), the request must have been auto-approved → cancel pending alert.
-// Only if Claude truly pauses (no further hook activity) do we go urgent.
-const PERMISSION_DEBOUNCE_MS = 1500;
+// Claude Code's hook order for a tool call:
+//   PreToolUse → PermissionRequest → (auto OR user clicks Allow) →
+//   tool runs → PostToolUse
+//
+// PreToolUse arrives BEFORE PermissionRequest, so it's useless as a "Claude
+// continued past the permission" signal. The right cancel signal is
+// PostToolUse — for auto-approved tools it arrives within ms of the
+// PermissionRequest; for blocking ones it only arrives after the user clicks
+// through the dialog (typically several seconds later or never).
+//
+// Strategy: defer the urgent display by PERMISSION_DEBOUNCE_MS. Cancel if
+// PostToolUse / Stop / a non-prompt Notification / another PermissionRequest
+// arrives in that window. Only when Claude truly pauses (no further hook
+// activity within the window) do we go urgent.
+const PERMISSION_DEBOUNCE_MS = 3000;
 let pendingPermissionTimer = null;
 let pendingPermissionPayload = null;
 
@@ -520,8 +533,18 @@ window.petAPI?.onClaudeCodePermissionRequest((payload) => {
   }, PERMISSION_DEBOUNCE_MS);
 });
 
-// PreToolUse = Claude is about to invoke a tool, which means the previous
-// permission check was resolved. If we had a pending urgent, kill it.
+// PostToolUse = a tool actually executed. For auto-approved tools this
+// arrives within ms of the PermissionRequest; for blocking ones it only
+// arrives after the user clicks Allow. So receiving one means the previous
+// permission check was resolved and we should cancel the pending urgent.
+window.petAPI?.onClaudeCodePostToolUse?.(() => {
+  cancelPendingPermission();
+});
+
+// PreToolUse fires BEFORE PermissionRequest, so it can't cancel a pending
+// urgent for the current tool. Kept wired only as a defensive cancel for
+// edge cases where ordering differs (e.g. a follow-up tool's PreToolUse
+// arriving fast after our pending urgent was set up).
 window.petAPI?.onClaudeCodePreToolUse?.(() => {
   cancelPendingPermission();
 });
