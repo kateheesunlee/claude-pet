@@ -63,20 +63,65 @@ function createWindow() {
   }
 }
 
-ipcMain.on('focus-claude-session', (_event, cwd) => {
-  // Two modes:
-  //  - terminal/editor mode (CLAUDE_PET_TERMINAL_APP set): open cwd in that app
-  //  - default: just bring Claude Desktop to the front
-  const args = TERMINAL_APP
-    ? (cwd && typeof cwd === 'string' ? ['-a', TERMINAL_APP, cwd] : ['-a', TERMINAL_APP])
-    : ['-a', 'Claude'];
-  console.log(`[focus] open ${args.join(' ')}`);
-  execFile('open', args, { timeout: 3000 }, (err, _stdout, stderr) => {
-    if (err) {
-      console.error('[focus] failed:', (stderr || '').trim() || err.message);
-    }
-  });
+ipcMain.on('focus-claude-session', (_event, info) => {
+  // info: { cwd, sessionId } from the most recent hook payload. sessionId
+  // is unused for now (kept in the IPC for future deep-link experiments).
+  const { cwd } = info || {};
+
+  // Terminal/editor mode (CLAUDE_PET_TERMINAL_APP set) — open cwd in that app
+  if (TERMINAL_APP) {
+    const args = cwd && typeof cwd === 'string'
+      ? ['-a', TERMINAL_APP, cwd]
+      : ['-a', TERMINAL_APP];
+    console.log(`[focus] open ${args.join(' ')}`);
+    execFile('open', args, { timeout: 3000 }, (err, _stdout, stderr) => {
+      if (err) console.error('[focus] failed:', (stderr || '').trim() || err.message);
+    });
+    return;
+  }
+
+  // Default: bring Claude Desktop to the front. Deep-linking to the specific
+  // session via `claude://resume?session=<uuid>` was tried but it navigates
+  // to a previously-imported Desktop conversation rather than the current
+  // active one — confusing UX. Reverted to just app-level focus until we
+  // find a route that targets the live conversation.
+  console.log('[focus] activate Claude');
+  activateClaudeDesktop();
 });
+
+// Bring Claude.app to the foreground without starting a fresh instance.
+//
+// Two parallel calls:
+//
+//   1. `open -a Claude` — the standard "launch if not running, activate if
+//      running" path. Reliably brings a window to the foreground for the
+//      ordinary cases (cmd+H hidden, in another non-fullscreen Space).
+//
+//   2. `osascript "tell ... to activate"` — Apple Event that makes the
+//      WindowServer switch to whichever Space the app's frontmost window
+//      is on, including fullscreen Spaces. `open -a` alone sometimes
+//      doesn't cross fullscreen Space boundaries.
+//
+// We previously also ran `open -n -a Claude` to trigger the second-instance
+// handler (intended to pull Dock-minimized windows out), but it was observed
+// to actually spawn a fresh instance instead — removed. Dock-minimize can
+// be revisited with a different mechanism (e.g. AXUIElement) if it comes up.
+function activateClaudeDesktop() {
+  execFile(
+    'open', ['-a', 'Claude'],
+    { timeout: 3000 },
+    (err, _stdout, stderr) => {
+      if (err) console.error('[focus] open -a failed:', (stderr || '').trim() || err.message);
+    },
+  );
+  execFile(
+    'osascript', ['-e', 'tell application "Claude" to activate'],
+    { timeout: 3000 },
+    (err, _stdout, stderr) => {
+      if (err) console.error('[focus] activate failed:', (stderr || '').trim() || err.message);
+    },
+  );
+}
 
 ipcMain.on('set-interactive', (_event, interactive) => {
   if (!mainWindow) return;
