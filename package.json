@@ -1,0 +1,13 @@
+{
+  "name": "claude-pet",
+  "version": "0.1.0",
+  "description": "A Claude-logo dog that bothers you while you wait for Claude responses",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

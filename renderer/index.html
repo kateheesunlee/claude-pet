@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Claude Pet</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <div id="pet" class="state-idle">
+        <div id="bubble" class="hidden">
+          <span id="bubble-text">멍멍!</span>
+        </div>
+        <div id="hearts">
+          <span>♥</span>
+          <span>♥</span>
+          <span>♥</span>
+          <span>♥</span>
+        </div>
+        <div id="dog">
+          <!-- ears -->
+          <div class="ear ear-left"></div>
+          <div class="ear ear-right"></div>
+          <!-- head -->
+          <div class="head">
+            <div class="sparkle">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <path d="M12 2 L13.5 10.5 L22 12 L13.5 13.5 L12 22 L10.5 13.5 L2 12 L10.5 10.5 Z"
+                      fill="#fff" />
+              </svg>
+            </div>
+            <div class="eye eye-left"><div class="pupil"></div></div>
+            <div class="eye eye-right"><div class="pupil"></div></div>
+            <div class="snout">
+              <div class="nose"></div>
+              <div class="mouth"></div>
+              <div class="tongue"></div>
+            </div>
+            <div class="cheek cheek-left"></div>
+            <div class="cheek cheek-right"></div>
+          </div>
+          <!-- body -->
+          <div class="body">
+            <div class="paw paw-left"></div>
+            <div class="paw paw-right"></div>
+            <div class="tail"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="pet.js"></script>
+  </body>
+</html>
