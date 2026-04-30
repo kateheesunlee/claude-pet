@@ -452,12 +452,28 @@ window.petAPI?.onClaudeCodeStop((payload) => {
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
   rememberFocus(payload);
+  // Claude Code routes events differently depending on where it runs:
+  //   - Inside Claude Desktop's CC pane: permission asks fire the dedicated
+  //     `PermissionRequest` hook (handled below).
+  //   - Standalone CLI in a terminal: there's no `PermissionRequest` hook —
+  //     permission asks come through as `Notification` with
+  //     `notification_type: "permission_prompt"`. Same urgency, same UX
+  //     intent, just a different transport. Detect that flavor here and
+  //     route it through the urgent bubble path so terminal users get the
+  //     same red "🚨 X 허락해줘!" treatment as Desktop users.
+  if (payload?.notification_type === 'permission_prompt') {
+    // Claude's message looks like: "Claude needs your permission to use <Tool>"
+    const tool = payload?.message?.match(/\buse\s+([A-Za-z][\w-]*)/)?.[1] || null;
+    startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
+    return;
+  }
   const msg = payload?.message;
   startBother(msg ? `🔔 ${msg}` : '🔔 알림!', /* urgent */ true, 'info');
 });
 
 // PermissionRequest fires when an in-CLI permission dialog appears (e.g., "Allow
-// Claude to run lsof?"). This is the most user-blocking moment — urgent bother.
+// Claude to run lsof?") inside Claude Desktop's CC pane. The standalone CLI
+// uses Notification(notification_type=permission_prompt) instead — see above.
 window.petAPI?.onClaudeCodePermissionRequest((payload) => {
   rememberFocus(payload);
   const tool = payload?.tool_name;

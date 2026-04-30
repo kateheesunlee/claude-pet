@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] STOP: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/stop -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] STOP: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/stop -H 'content-type: application/json' --max-time 5 -d @- >> /tmp/claude-pet-hook.log 2>&1 || echo \"[$(date +%H:%M:%S)] STOP curl failed\" >> /tmp/claude-pet-hook.log"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] NOTIF: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/notification -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] NOTIF: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/notification -H 'content-type: application/json' --max-time 5 -d @- >> /tmp/claude-pet-hook.log 2>&1 || echo \"[$(date +%H:%M:%S)] NOTIF curl failed\" >> /tmp/claude-pet-hook.log"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PERM: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/permission-request -H 'content-type: application/json' --max-time 5 -d @- > /dev/null || true"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PERM: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/permission-request -H 'content-type: application/json' --max-time 5 -d @- >> /tmp/claude-pet-hook.log 2>&1 || echo \"[$(date +%H:%M:%S)] PERM curl failed\" >> /tmp/claude-pet-hook.log"
           }
         ]
       }
