@@ -279,6 +279,11 @@ function dispatchHook(url, payload, res) {
   } else if (url === '/claude-code/permission-request') {
     console.log('[hook] PermissionRequest', payload?.tool_name || payload?.session_id?.slice(0, 8) || '');
     mainWindow.webContents.send('claude-code-permission-request', payload);
+  } else if (url === '/claude-code/pre-tool-use') {
+    // PreToolUse is used as a "Claude is still working" heartbeat — the
+    // renderer uses it to cancel a pending urgent that turned out to be
+    // auto-approved. We don't log it to keep the console clean.
+    mainWindow.webContents.send('claude-code-pre-tool-use', payload);
   } else {
     res.writeHead(404); res.end();
     return;

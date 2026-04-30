@@ -446,12 +446,23 @@ function rememberFocus(payload) {
 // CSS `.tone-*` rules in style.css for the palette.
 window.petAPI?.onClaudeCodeStop((payload) => {
   rememberFocus(payload);
+  // Claude finished its whole response → any pending permission was clearly
+  // not blocking. Drop the pending urgent before we transition to the
+  // success-tone bother for "done".
+  cancelPendingPermission();
   const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
   startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!', false, 'success');
 });
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
   rememberFocus(payload);
+  // A non-permission notification means Claude is communicating something else
+  // (e.g. session message). Cancel any pending PermissionRequest debounce so
+  // we don't double-alert. (Permission-prompt notifications are handled below
+  // and intentionally KEEP the urgent path — they ARE the blocking signal.)
+  if (payload?.notification_type !== 'permission_prompt') {
+    cancelPendingPermission();
+  }
   // Claude Code routes events differently depending on where it runs:
   //   - Inside Claude Desktop's CC pane: permission asks fire the dedicated
   //     `PermissionRequest` hook (handled below).
@@ -471,13 +482,48 @@ window.petAPI?.onClaudeCodeNotification((payload) => {
   startBother(msg ? `🔔 ${msg}` : '🔔 알림!', /* urgent */ true, 'info');
 });
 
-// PermissionRequest fires when an in-CLI permission dialog appears (e.g., "Allow
-// Claude to run lsof?") inside Claude Desktop's CC pane. The standalone CLI
-// uses Notification(notification_type=permission_prompt) instead — see above.
+// PermissionRequest fires for ANY permission check Claude Code does — including
+// tools that are auto-allowed (allowlisted in settings, or under permission_mode
+// like "acceptEdits"). The hook payload doesn't tell us whether the user is
+// actually being prompted, so a naive implementation alerts the user even when
+// no action is needed.
+//
+// Strategy: defer the urgent display by PERMISSION_DEBOUNCE_MS. If during that
+// window Claude continues working (next PreToolUse, another PermissionRequest,
+// or Stop), the request must have been auto-approved → cancel pending alert.
+// Only if Claude truly pauses (no further hook activity) do we go urgent.
+const PERMISSION_DEBOUNCE_MS = 1500;
+let pendingPermissionTimer = null;
+let pendingPermissionPayload = null;
+
+function cancelPendingPermission() {
+  if (pendingPermissionTimer) {
+    clearTimeout(pendingPermissionTimer);
+    pendingPermissionTimer = null;
+    pendingPermissionPayload = null;
+  }
+}
+
 window.petAPI?.onClaudeCodePermissionRequest((payload) => {
   rememberFocus(payload);
-  const tool = payload?.tool_name;
-  startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
+  // If a previous permission was pending, cancel it — the new one supersedes
+  // (and the new one's existence proves Claude wasn't blocked on the old one).
+  cancelPendingPermission();
+  pendingPermissionPayload = payload;
+  pendingPermissionTimer = setTimeout(() => {
+    const p = pendingPermissionPayload;
+    pendingPermissionPayload = null;
+    pendingPermissionTimer = null;
+    if (!p) return;
+    const tool = p?.tool_name;
+    startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
+  }, PERMISSION_DEBOUNCE_MS);
+});
+
+// PreToolUse = Claude is about to invoke a tool, which means the previous
+// permission check was resolved. If we had a pending urgent, kill it.
+window.petAPI?.onClaudeCodePreToolUse?.(() => {
+  cancelPendingPermission();
 });
 
 // Boot

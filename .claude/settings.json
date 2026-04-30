@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PRE: $input\" >> /tmp/claude-pet-hook.log"
+            "command": "input=$(cat); echo \"[$(date +%H:%M:%S)] PRE: $input\" >> /tmp/claude-pet-hook.log; printf '%s' \"$input\" | curl -sf -X POST http://127.0.0.1:47625/claude-code/pre-tool-use -H 'content-type: application/json' --max-time 2 -d @- >/dev/null 2>&1; exit 0"
           }
         ]
       }
