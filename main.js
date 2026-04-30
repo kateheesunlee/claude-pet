@@ -1,6 +1,14 @@
 const { app, BrowserWindow, screen, ipcMain, Menu, Tray, nativeImage } = require('electron');
 const path = require('path');
 const http = require('http');
+const { execFile } = require('child_process');
+
+// Which app to bring to front when the user clicks the pet to "go to the
+// session". By default we focus Claude Desktop (the app the hook most likely
+// came from). If CLAUDE_PET_TERMINAL_APP is set (Cursor, iTerm, Terminal,
+// Warp, "Visual Studio Code", etc.), we open the session's cwd in that app
+// instead — for users who run Claude Code from a terminal/editor.
+const TERMINAL_APP = process.env.CLAUDE_PET_TERMINAL_APP || null;
 
 // Claude Desktop notification watcher is currently disconnected — see git
 // history for the wiring. Focusing on Claude Code (CLI) hook integration first.
@@ -54,6 +62,21 @@ function createWindow() {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 }
+
+ipcMain.on('focus-claude-session', (_event, cwd) => {
+  // Two modes:
+  //  - terminal/editor mode (CLAUDE_PET_TERMINAL_APP set): open cwd in that app
+  //  - default: just bring Claude Desktop to the front
+  const args = TERMINAL_APP
+    ? (cwd && typeof cwd === 'string' ? ['-a', TERMINAL_APP, cwd] : ['-a', TERMINAL_APP])
+    : ['-a', 'Claude'];
+  console.log(`[focus] open ${args.join(' ')}`);
+  execFile('open', args, { timeout: 3000 }, (err, _stdout, stderr) => {
+    if (err) {
+      console.error('[focus] failed:', (stderr || '').trim() || err.message);
+    }
+  });
+});
 
 ipcMain.on('set-interactive', (_event, interactive) => {
   if (!mainWindow) return;

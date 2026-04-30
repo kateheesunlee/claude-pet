@@ -400,6 +400,18 @@ pet.addEventListener('click', () => {
   if (state === 'petted') return; // petting takes priority
   if (state === 'sleeping') return; // wakeUp already triggered via resetSleepTimer
 
+  // If a Claude Code hook left us with a session cwd, clicking the pet jumps
+  // there (opens the workspace in the configured terminal app). Consume it
+  // either way — one click, one navigation.
+  if (pendingFocusCwd) {
+    const cwdToFocus = pendingFocusCwd;
+    pendingFocusCwd = null;
+    window.petAPI?.focusClaudeSession(cwdToFocus);
+    showBubble('데려다줄게! 🐾', 1500, 'happy');
+    if (state === 'bother') stopBother();
+    return;
+  }
+
   if (state === 'bother') {
     stopBother();
     showBubble('헤헤 🐶', 1800, 'happy');
@@ -415,15 +427,21 @@ window.petAPI?.onToggleVisibility(() => {
   pet.classList.toggle('hidden-all');
 });
 
+// When a Claude Code hook fires, remember its cwd so a click on the pet
+// can jump to that session (open the workspace in the terminal app).
+let pendingFocusCwd = null;
+
 // Claude Code (CLI) hook events forwarded from main's HTTP server.
 // Each hook gets its own bubble border color via the `tone` arg; see the
 // CSS `.tone-*` rules in style.css for the palette.
 window.petAPI?.onClaudeCodeStop((payload) => {
+  pendingFocusCwd = payload?.cwd || null;
   const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
   startBother(cwd ? `✅ ${cwd} 끝!` : '✅ Claude Code 끝!', false, 'success');
 });
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
+  pendingFocusCwd = payload?.cwd || null;
   const msg = payload?.message;
   startBother(msg ? `🔔 ${msg}` : '🔔 알림!', /* urgent */ true, 'info');
 });
@@ -431,6 +449,7 @@ window.petAPI?.onClaudeCodeNotification((payload) => {
 // PermissionRequest fires when an in-CLI permission dialog appears (e.g., "Allow
 // Claude to run lsof?"). This is the most user-blocking moment — urgent bother.
 window.petAPI?.onClaudeCodePermissionRequest((payload) => {
+  pendingFocusCwd = payload?.cwd || null;
   const tool = payload?.tool_name;
   startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
 });
