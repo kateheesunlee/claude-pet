@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+
+# Local dev helpers (not part of the project)
+.claude/launch.json
+.claude/settings.local.json
