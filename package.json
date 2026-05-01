@@ -1,11 +1,21 @@
 {
   "name": "claude-pet",
   "version": "0.1.0",
-  "description": "A Claude-logo dog that bothers you while you wait for Claude responses",
+  "description": "A desktop puppy that watches Claude Code for you — trots over when a response is ready, barks when permission is needed.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev"
+  },
+  "author": "Kate Lee",
+  "license": "MIT",
+  "homepage": "https://github.com/kateheesunlee/claude-pet",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kateheesunlee/claude-pet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kateheesunlee/claude-pet/issues"
   },
   "devDependencies": {
     "electron": "^33.0.0"
