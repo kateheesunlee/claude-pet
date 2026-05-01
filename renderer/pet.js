@@ -9,11 +9,11 @@ let sleepTimer = null;
 let isUrgent = false;
 
 const BOTHER_LINES = [
-  '야! 놀아줘 🐾',
-  '멍멍! 여기 좀 봐!',
-  '심심해... 놀아줘',
-  '아직이야...?',
-  '왈! 왈! 왈!',
+  'Hey! Play with me 🐾',
+  'Woof! Look here!',
+  "I'm bored…",
+  'Still busy…?',
+  'Bark! Bark! Bark!',
 ];
 
 let state = 'idle';
@@ -80,7 +80,7 @@ function goToSleep() {
 function wakeUp() {
   if (state !== 'sleeping') return;
   setState('idle');
-  showBubble(pickLine(['음...?', '어어!', '하암... 🐶']), 1500, 'happy');
+  showBubble(pickLine(['Hmm…?', 'Oh!', 'Yawn… 🐶']), 1500, 'happy');
 }
 
 function forceSleep() {
@@ -272,7 +272,7 @@ function stopPetting(silent = false) {
   clearTimeout(pettingHoldTimer);
   pettingHoldTimer = null;
   if (!silent) {
-    showBubble(pickLine(['헤헤 🐶', '좋아 좋아 🐾', '한 번 더!']), 1500, 'happy');
+    showBubble(pickLine(['Hehe 🐶', 'Yes yes 🐾', 'One more!']), 1500, 'happy');
   }
 }
 
@@ -378,7 +378,7 @@ document.addEventListener('mouseup', () => {
     saveHome();
     pet.classList.remove('dragging');
     suppressNextClick = true;
-    showBubble('여기가 좋아? 🏠', 1600, 'happy');
+    showBubble('Like it here? 🏠', 1600, 'happy');
     // restore mouse-event ignoring if cursor is no longer over the pet
     const r = pet.getBoundingClientRect();
     const insidePet =
@@ -408,16 +408,16 @@ pet.addEventListener('click', () => {
     const info = pendingFocus;
     pendingFocus = null;
     window.petAPI?.focusClaudeSession(info);
-    showBubble('데려다줄게! 🐾', 1500, 'happy');
+    showBubble("I'll take you there! 🐾", 1500, 'happy');
     if (state === 'bother') stopBother();
     return;
   }
 
   if (state === 'bother') {
     stopBother();
-    showBubble('헤헤 🐶', 1800, 'happy');
+    showBubble('Hehe 🐶', 1800, 'happy');
   } else {
-    showBubble(pickLine(['쓰담쓰담?', '🐾', '왈!', '히힛']), 1500, 'happy');
+    showBubble(pickLine(['Pet me?', '🐾', 'Woof!', 'Hihi']), 1500, 'happy');
   }
 });
 
@@ -454,7 +454,7 @@ window.petAPI?.onClaudeCodeStop((payload) => {
   // the pet itself was shutting down — confusing. New copy makes it clear
   // a reply has just landed.
   const cwd = payload?.cwd?.replace(/\/+$/, '').split('/').pop() || null;
-  startBother(cwd ? `💬 ${cwd} 답장 왔어!` : '💬 Claude 답장 왔어!', false, 'success');
+  startBother(cwd ? `💬 ${cwd} replied!` : '💬 Claude replied!', false, 'success');
 });
 
 window.petAPI?.onClaudeCodeNotification((payload) => {
@@ -478,11 +478,11 @@ window.petAPI?.onClaudeCodeNotification((payload) => {
   if (payload?.notification_type === 'permission_prompt') {
     // Claude's message looks like: "Claude needs your permission to use <Tool>"
     const tool = payload?.message?.match(/\buse\s+([A-Za-z][\w-]*)/)?.[1] || null;
-    startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
+    startBother(tool ? `🚨 Allow ${tool}!` : '🚨 Permission needed!', /* urgent */ true, 'urgent');
     return;
   }
   const msg = payload?.message;
-  startBother(msg ? `🔔 ${msg}` : '🔔 알림!', /* urgent */ true, 'info');
+  startBother(msg ? `🔔 ${msg}` : '🔔 Heads up!', /* urgent */ true, 'info');
 });
 
 // PermissionRequest fires for ANY permission check Claude Code does — including
@@ -529,7 +529,7 @@ window.petAPI?.onClaudeCodePermissionRequest((payload) => {
     pendingPermissionTimer = null;
     if (!p) return;
     const tool = p?.tool_name;
-    startBother(tool ? `🚨 ${tool} 허락해줘!` : '🚨 권한 요청!', /* urgent */ true, 'urgent');
+    startBother(tool ? `🚨 Allow ${tool}!` : '🚨 Permission needed!', /* urgent */ true, 'urgent');
   }, PERMISSION_DEBOUNCE_MS);
 });
 
@@ -552,5 +552,5 @@ window.petAPI?.onClaudeCodePreToolUse?.(() => {
 // Boot
 setState('idle');
 loadHome();
-showBubble('안녕! 🐾', 3000);
+showBubble('Hi! 🐾', 3000);
 resetSleepTimer();

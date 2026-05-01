@@ -1,230 +1,235 @@
 # 🐶 Claude Pet
 
-> 데스크탑 한 켠에 사는 클로드 강아지. Claude Code가 응답을 마치거나 권한을 물어볼 때 쪼르르 따라와서 알려주고, 가끔 놀아달라고 조릅니다.
+> A little Claude puppy that lives in the corner of your desktop. It comes running over to let you know when Claude Code finishes a response or asks for permission, and occasionally begs you to play.
+
+> 🇰🇷 한국어 README는 [README.ko.md](README.ko.md) 를 보세요.
 
 ---
 
-## 무엇을 위한 앱인가요?
+## What it's for
 
-Claude Code(CLI)를 백그라운드에서 돌리다 보면 응답이 끝났는지, 권한 프롬프트가 떠 있는지 놓치기 쉬워요. Claude Pet은 그런 순간을 **시각적으로 즉시** 알려주는 작은 데스크탑 펫입니다.
+If you run Claude Code (CLI) in the background, it's easy to miss when a response wraps up or when a permission prompt is sitting there waiting for you. Claude Pet is a tiny desktop pet that flags those moments **visually and instantly**.
 
-- ✅ 응답이 끝나면 → 녹색 말풍선과 함께 강아지가 따라옴
-- 🚨 권한을 물어보면 → 빨간 말풍선으로 강하게 보챔
-- 🔔 일반 알림이 오면 → 파란 말풍선
-- 🐾 강아지를 클릭하면 → Claude Desktop 앱으로 포커스 (또는 환경변수로 Cursor 등 에디터 지정 시 해당 워크스페이스로 점프)
-- 그 외 시간엔 가만히 앉아서 꼬리 흔들거나 5분 뒤 잠들음 (zZz)
+- ✅ Response done → green bubble, the pup trots over
+- 🚨 Permission requested → red bubble, more insistent
+- 🔔 Generic notification → blue bubble
+- 🐾 Click the pup → focuses Claude Desktop (or jumps to your editor's workspace if you've set the env var)
+- The rest of the time it sits there breathing, wagging its tail, and falls asleep after 5 minutes (zZz)
 
 ---
 
-## 설치 & 실행
+## Install & run
 
-### 사전 준비
-- macOS (Sonoma+ 권장)
+### Prerequisites
+- macOS (Sonoma or later recommended)
 - Node.js 18+
-- Claude Code CLI (선택 — 펫은 CLI 없어도 동작하지만, 진짜 가치는 훅 연동에서 나와요)
+- Claude Code CLI (optional — the pet runs without it, but the real value comes from hook integration)
 
-### 첫 실행
+### First run
 ```bash
-cd /Users/katelee/Projects/ClaudePet
+cd /path/to/ClaudePet
 npm install
 npm start
 ```
 
-개발/디버깅 시:
+For development / debugging:
 ```bash
-npm run dev                       # 콘솔 로그 보임 (터미널에 [hook] 등)
-CLAUDE_PET_DEVTOOLS=1 npm run dev # + 렌더러 DevTools 열림
+npm run dev                       # console logs visible in your terminal ([hook] etc.)
+CLAUDE_PET_DEVTOOLS=1 npm run dev # + opens renderer DevTools
 ```
 
-### macOS Accessibility 권한
-첫 실행 시 macOS가 권한 다이얼로그를 띄워요. **허용**해주세요.
+### macOS Accessibility permission
+On first launch macOS will pop a permission dialog. Click **Allow**.
 
-다이얼로그를 못 받았거나 실수로 거부했다면:
-1. 시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용
-2. 목록에 **Electron**이 있는지 확인 → 있으면 토글 ON
-3. 없으면 `+` 버튼 → `Cmd+Shift+G` →
+If you missed the dialog or accidentally denied it:
+1. System Settings → Privacy & Security → Accessibility
+2. Look for **Electron** in the list — if present, toggle it ON
+3. If not present, click `+` → `Cmd+Shift+G` →
    ```
-   /Users/katelee/Projects/ClaudePet/node_modules/electron/dist/Electron.app
+   /path/to/ClaudePet/node_modules/electron/dist/Electron.app
    ```
-4. 추가 후 토글 ON, 펫 재시작
+4. Add it, toggle ON, restart the pet
 
-### Claude Code 훅 연결 (핵심)
-펫이 진짜로 유용해지려면 Claude Code의 hook을 펫의 HTTP 서버(`localhost:47625`)에 연결해야 합니다. **첫 실행 시 뜨는 온보딩 화면의 "✨ 자동 설정하기" 버튼 한 번**이면 끝나요.
+### Connecting Claude Code hooks (the important bit)
+The pet only becomes really useful once Claude Code's hooks are wired into the pet's local HTTP server (`localhost:47625`). **One click on the "✨ Auto-install" button on first launch** does this for you.
 
-자동 설정은 글로벌 `~/.claude/settings.json`에 다음 5개 hook을 추가합니다 (마커 `# claudepet-hook-v1`로 태깅돼서 나중에 깨끗이 제거 가능):
+The auto-installer adds these 5 hooks to the global `~/.claude/settings.json` (each tagged with `# claudepet-hook-v1` so they can be cleanly removed later):
 
-- **Stop** → 응답 완료 시 펫이 💬로 알림
-- **Notification** → macOS 레벨 알림 시 펫 알림
-- **PermissionRequest** → 권한 다이얼로그 뜰 때 펫이 🚨 빨갛게 보챔
-- **PreToolUse / PostToolUse** → 자동 승인된 권한 체크는 urgent로 안 뜨게 디바운스용
+- **Stop** → 💬 the pet trots over when Claude finishes responding
+- **Notification** → blue bubble for macOS-level notifications
+- **PermissionRequest** → 🚨 red urgent bubble when a permission dialog appears
+- **PreToolUse / PostToolUse** → used to debounce auto-approved permission checks so they don't false-trigger urgent
 
-온보딩을 다시 보거나 훅을 제거하려면 트레이의 🐶 메뉴에서 **`Onboarding 다시 보기…`** / **`글로벌 훅 제거…`**.
+Re-open the onboarding or remove hooks any time from the tray 🐶 menu: **`Show onboarding…`** / **`Uninstall global hooks…`**.
 
 ---
 
-## 🐾 펫 트리거 룰
+## 🐾 Trigger rules
 
-펫이 언제 어떻게 반응하는지 한눈에:
+When and how the pet reacts, at a glance:
 
-| 이벤트 | Bubble 색 | 메시지 예시 | 발동 조건 | 긴급도 |
+| Event | Bubble color | Example | Trigger | Urgency |
 |---|---|---|---|---|
-| 응답 완료 | 🟢 녹색 | `💬 ClaudePet 답장 왔어!` | Claude Code `Stop` 훅 | 일반 (8초) |
-| 권한 요청 | 🔴 빨강 | `🚨 Bash 허락해줘!` | Claude Code `PermissionRequest` 훅 | **Urgent** (10분 안전 타이머) |
-| 일반 알림 | 🔵 파랑 | `🔔 <메시지>` | Claude Code `Notification` 훅 | Urgent |
-| 일반 bother | 🟠 코랄 | `야! 놀아줘 🐾` | 트레이 "Bother now" / Demo timer | 일반 |
-| 긍정 반응 | 🩷 핑크 | `헤헤 🐶`, `여기가 좋아? 🏠` | 클릭 답례, 쓰담쓰담 끝, 드래그 끝, 잠깸 | (지속 안 함) |
+| Response done | 🟢 green | `💬 ClaudePet replied!` | Claude Code `Stop` hook | normal (8s) |
+| Permission ask | 🔴 red | `🚨 Allow Bash!` | Claude Code `PermissionRequest` hook | **urgent** (10-min safety timer) |
+| Notification | 🔵 blue | `🔔 <message>` | Claude Code `Notification` hook | urgent |
+| Generic bother | 🟠 coral | `Hey! Play with me 🐾` | Tray "Bother now" / Demo timer | normal |
+| Happy reaction | 🩷 pink | `Hehe 🐶`, `Like it here? 🏠` | Click reply, end of petting, end of drag, waking up | (transient) |
 
-### 일반 bother vs Urgent bother
+### Normal bother vs Urgent bother
 
-| | 일반 | Urgent |
+| | Normal | Urgent |
 |---|---|---|
-| 자동 종료 | 8초 | 10분 (안전 타이머) |
-| 시각 강조 | 보통 | 빨간 펄스 점 + 강조 클래스 |
-| 5분 idle 후 sleep | 활성 | **freeze** (계속 깨어있음) |
-| 다운그레이드 | — | 진행 중 일반 트리거 와도 urgent 유지 |
+| Auto-clear | 8s | 10 min (safety timer) |
+| Visual emphasis | regular | red pulse + emphasis class |
+| 5-min idle → sleep | active | **frozen** (stays awake) |
+| Downgrade | — | new normal-tone events don't downgrade urgent |
 
-> 💡 **팁**: Urgent 상태에선 펫을 클릭하거나 쓰다듬어야 풀려요. 사용자가 그 순간 안 보고 있을 위험이 큰 시점이라 일부러 끈질김.
+> 💡 **Tip**: An urgent bother only clears when you click or pet the pup. The pet stays insistent on purpose — it's the moment you're most likely to be looking away.
 
 ---
 
-## 🐶 펫과 인터랙션하기
+## 🐶 Interacting with the pet
 
-| 액션 | 결과 |
+| Action | Result |
 |---|---|
-| 마우스 호버 | 자고 있던 펫이 깨어남 |
-| 펫 클릭 (Claude Code 알림 직후) | Claude Desktop 앱으로 포커스 (기본). `CLAUDE_PET_TERMINAL_APP` 지정 시 해당 앱에서 세션 `cwd` 열기 |
-| 펫 클릭 (그 외) | bother 중이면 dismiss. 평상시엔 짧은 답례 ("쓰담쓰담?", "🐾", "왈!") |
-| 펫 드래그 | 새 위치로 이동, 그 자리가 **영구 홈**으로 저장됨 (재시작해도 유지) |
-| 호버한 채로 좌↔우 3번 휘젓기 | **쓰담쓰담 모드** — 배 뒤집고 하트 날림 |
-| 마우스 떼기 (쓰담 중) | 즉시 일어남 |
-| 5분 동안 아무 인터랙션 없음 | 잠듦 (zZz) — Urgent bother 중엔 안 잠 |
+| Mouse hover | Wakes up a sleeping pet |
+| Click (right after a Claude Code event) | Focuses Claude Desktop (default). With `CLAUDE_PET_TERMINAL_APP` set, opens the session's `cwd` in that app instead |
+| Click (otherwise) | Dismisses an active bother. Otherwise a quick reply ("Pet me?", "🐾", "Woof!") |
+| Drag the pet | Moves it to a new spot — that becomes its **permanent home** (persists across restarts) |
+| Hover + flick left↔right 3 times | **Petting mode** — belly up, hearts everywhere |
+| Move mouse away (while petting) | Pup gets up immediately |
+| 5 min with no interaction | Falls asleep (zZz) — never sleeps during urgent bother |
 
-### 펫의 상태(state)
+### Pet states
 
-- 🟢 **idle**: 가만히 앉아 숨쉬고 꼬리 흔듦 (평상시)
-- 🐾 **bother**: 콩콩 뛰면서 커서 따라옴 + 말풍선
-- 🩷 **petted**: 배 뒤집고 발버둥 + 하트
-- 💤 **sleeping**: zZz, 호버하면 깸
-- 🚨 **urgent** (modifier): bother + 빨간 강조
+- 🟢 **idle**: sitting, breathing, tail wagging (default)
+- 🐾 **bother**: hopping toward the cursor + bubble
+- 🩷 **petted**: belly up + hearts
+- 💤 **sleeping**: zZz, hover to wake
+- 🚨 **urgent** (modifier): bother + red emphasis
 
 ---
 
-## 🎛 트레이 메뉴 (메뉴바 🐶 아이콘)
+## 🎛 Tray menu (the 🐶 menubar icon)
 
-| 항목 | 동작 |
+| Item | What it does |
 |---|---|
-| `Hook: listening on :47625` | 훅 서버 상태 표시 (클릭 불가) |
-| `Bother now` | 즉시 일반 bother 발동 (테스트용) |
-| `Sleep now` | 펫 즉시 재우기 |
-| `Toggle pet` | 펫 숨기기 / 다시 보이기 |
-| `Demo timer: ON/OFF` | 30초마다 자동 bother (시연/테스트용) |
-| `Quit` | 종료 |
+| `Hook server: listening on :47625` | Hook server status (informational) |
+| `Hooks: ✓ installed (global)` | Hook install status (informational) |
+| `Bother now` | Triggers a normal bother immediately (testing) |
+| `Sleep now` | Puts the pet to sleep right away |
+| `Toggle pet` | Hides / shows the pet |
+| `Demo timer: ON/OFF` | Auto-bothers every 30s (demos / testing) |
+| `Show onboarding…` | Reopens the onboarding window |
+| `Install global hooks` / `Uninstall global hooks…` | Installs or removes the global hooks |
+| `Quit` | Quit the app |
 
 ---
 
-## 🏗 작동 원리 (간단히)
+## 🏗 How it works
 
 ```
 Claude Code (CLI)
        │
-       │ 훅 발화 (Stop / Notification / PermissionRequest / PreToolUse / PostToolUse)
+       │ hook fires (Stop / Notification / PermissionRequest / PreToolUse / PostToolUse)
        ▼
-   [~/.claude/settings.json hook] ← 온보딩 자동 설치
+   [~/.claude/settings.json hook] ← installed by onboarding
        │
        │ curl POST http://127.0.0.1:47625/claude-code/<event>
        ▼
-   [Electron 메인 프로세스: HTTP 서버]
+   [Electron main process: HTTP server]
        │
        │ IPC 'claude-code-<event>'
        ▼
-   [Renderer (투명 윈도우 위 강아지 DOM)]
+   [Renderer (puppy DOM in a transparent window)]
        │
-       │ 상태 전이 (idle → bother → ...)
+       │ state transition (idle → bother → ...)
        ▼
-   사용자 화면 위 시각/애니메이션
+   visual / animation on the user's screen
 ```
 
-### 파일 구조
+### Project layout
 ```
 ClaudePet/
-├── main.js                       # Electron 메인 + 훅 HTTP 서버 + 자동 인스톨러 + 트레이
-├── preload.js                    # Renderer ↔ 메인 IPC 브릿지
+├── main.js                       # Electron main + hook HTTP server + auto-installer + tray
+├── preload.js                    # renderer ↔ main IPC bridge
 ├── renderer/
-│   ├── index.html                # 강아지 DOM 구조
-│   ├── pet.js                    # 상태 머신, 마우스/훅 처리, 애니메이션
-│   ├── style.css                 # 강아지 모양 + bubble 톤 시스템
-│   ├── onboarding.html           # 첫 실행 온보딩 5단계
-│   ├── onboarding.css            # 온보딩 스타일
-│   └── onboarding.js             # 단계 네비 + 자동 인스톨 wiring
-└── .claude/skills/test-pet/      # /test-pet 스킬 (3초 후 테스트 메시지)
+│   ├── index.html                # puppy DOM
+│   ├── pet.js                    # state machine, mouse/hook handlers, animation
+│   ├── style.css                 # puppy shape + bubble tone system
+│   ├── onboarding.html           # 5-step first-run onboarding
+│   ├── onboarding.css            # onboarding styles
+│   └── onboarding.js             # step nav + auto-install wiring
+└── .claude/skills/test-pet/      # /test-pet skill (sends a test message after 3s)
 ```
 
-> 글로벌 hook은 첫 실행 시 온보딩에서 `~/.claude/settings.json`에 자동 설치돼요. 프로젝트 안에 별도 `.claude/settings.json`은 두지 않아요 (글로벌 한 곳에서만 관리).
+> Global hooks are installed into `~/.claude/settings.json` by the onboarding on first launch. There's no per-project `.claude/settings.json` — hook config is owned in one place (global) only.
 
 ---
 
-## 🧪 테스트 & 디버깅
+## 🧪 Testing & debugging
 
-### Hook 서버 동작 확인
+### Verify the hook server
 ```bash
-# 펫에게 직접 Stop 이벤트 보내보기
+# Send a Stop event directly to the pet
 curl -X POST http://127.0.0.1:47625/claude-code/stop \
   -H 'content-type: application/json' \
   -d '{"cwd":"/Users/me/test","session_id":"abc"}'
 ```
-응답 `{"ok":true}`와 함께 펫이 녹색 말풍선으로 따라와야 정상.
+You should see `{"ok":true}` and the pup trotting over with a green bubble.
 
-### Hook 로그 확인
-자동 설치된 글로벌 hook은 조용히 동작해요 (성능 위해 로그 안 남김). 디버깅 중 페이로드를 보고 싶으면 `npm run dev`로 띄우면 메인 프로세스 콘솔에 `[hook] Stop ...` 같은 요약이 찍혀요.
+### Hook logs
+The auto-installed global hooks run silently (no logging, for performance). To see payloads while debugging, run `npm run dev` — the main process prints summaries like `[hook] Stop ...` to the terminal.
 
-전체 JSON 페이로드까지 보고 싶으면 프로젝트 단위로 `.claude/settings.local.json` (gitignored)에 로깅 hook을 임시로 추가해서 `/tmp/claude-pet-hook.log`에 적립할 수 있어요:
+If you need the full JSON payload, you can temporarily add a logging hook to `.claude/settings.local.json` (gitignored) that appends to `/tmp/claude-pet-hook.log`:
 ```bash
 tail -f /tmp/claude-pet-hook.log
 ```
 
-### 포트 확인
+### Check the port
 ```bash
 lsof -nP -iTCP:47625 -sTCP:LISTEN
 ```
-Electron이 LISTEN 중이면 정상.
+If Electron is LISTENing, you're fine.
 
-### `/test-pet` 스킬
-Claude Code 안에서 `/test-pet` 입력하면 3초 후 테스트 메시지를 보내요. Claude를 백그라운드로 보내고 펫이 반응하는지 확인 가능.
-
----
-
-## ⚠️ 알려진 한계
-
-- **macOS 전용**: AppKit, Accessibility API, Apple-specific 훅 사용. Linux/Windows 미지원.
-- **포트 47625 고정**: 이미 쓰이는 환경이면 펫의 hook 서버가 못 뜸 (트레이 라벨에 표시됨). 필요시 [`main.js`](main.js)의 `HOOK_PORT` 상수 변경.
-- **권한이 즉시 반영 안 됨**: Accessibility 권한 토글 후엔 펫 재시작 필요.
-- **Permission prompt에만 반응**: Claude Code가 *내부적으로 막혀 있는* 다른 시점(예: long tool execution)은 별도 신호 없이는 감지 못 함.
-- **Claude Desktop 통합은 비활성**: 초기 PoC에서 Claude Desktop 사이드바/dock 뱃지 폴링을 시도했었지만 현재 [main.js](main.js)에선 비연결. CLI 훅 통합이 훨씬 정확해서 그쪽으로 단일화.
+### `/test-pet` skill
+Type `/test-pet` inside Claude Code — it sends a test message after 3 seconds. Background Claude Desktop and watch whether the pet reacts.
 
 ---
 
-### 클릭 → 세션으로 점프
+## ⚠️ Known limitations
 
-Claude Code 훅 (Stop / Notification / PermissionRequest) 직후에 펫을 클릭하면, **기본은 Claude Desktop 앱을 포그라운드로** 가져와요. (`open -a Claude`)
+- **macOS only**: uses AppKit, the Accessibility API, and Apple-specific hooks. Linux / Windows aren't supported.
+- **Port 47625 is hardcoded**: if it's already in use, the pet's hook server won't bind (the tray label tells you). Edit the `HOOK_PORT` constant in [`main.js`](main.js) if needed.
+- **Permission changes need a restart**: after toggling Accessibility permission, restart the pet.
+- **Reacts to permission prompts only**: other moments where Claude Code is *internally* blocked (e.g. a long tool execution) aren't detected without an explicit signal.
+- **Claude Desktop integration is disabled**: an early PoC polled Claude Desktop's sidebar / dock badge, but the wiring isn't active in [main.js](main.js) — CLI hook integration is more accurate, so the project consolidated on that.
 
-CLI를 터미널/에디터에서 돌리는 경우엔 환경변수로 해당 앱을 지정하면, 클릭 시 그 앱에서 세션의 `cwd`가 열려요:
+---
+
+### Click → jump to session
+
+Right after a Claude Code hook (Stop / Notification / PermissionRequest), clicking the pet **brings Claude Desktop to the foreground by default** (`open -a Claude`).
+
+If you run the CLI in a terminal / editor, set the env var so a click opens the session's `cwd` in that app instead:
 
 ```bash
 CLAUDE_PET_TERMINAL_APP=Cursor npm start
-# 또는: iTerm, Terminal, Warp, "Visual Studio Code" 등
+# or: iTerm, Terminal, Warp, "Visual Studio Code", etc.
 ```
 
-내부적으론 `open -a "$앱" "$cwd"`를 실행하므로, `open -a`로 처리 가능한 앱이면 다 됨.
+Internally it just runs `open -a "$APP" "$cwd"`, so anything `open -a` understands works.
 
-## 🛣 향후 개선 아이디어
+## 🛣 Future ideas
 
-- [ ] Stop 훅에서 `last_assistant_message` 길이/내용 보고 펫 동작 차별화 (질문 vs 단순 보고)
-- [ ] 사용자 정의 톤/메시지 지원
-- [ ] Multi-monitor 위치 기억
-- [ ] `SubagentStop`도 별도 톤으로 (현재는 미연결)
+- [ ] Differentiate pet behavior on `Stop` based on `last_assistant_message` length / content (question vs. simple status)
+- [ ] User-customizable tone / messages
+- [ ] Remember position per monitor (multi-monitor)
+- [ ] Wire up `SubagentStop` with its own tone (currently unhandled)
 
 ---
 
-## 🐾 만든 사람의 메모
+## 🐾 A note from the maker
 
-이 펫은 **PoC**입니다. Claude Code의 hook 시스템을 학습하고, "내가 잠시 자리 비운 사이 Claude가 뭘 했는지/뭘 묻고 있는지"를 시각적으로 캐치하는 게 목적이었어요. 동작을 추가/수정하기 매우 쉽게 짜뒀으니 (각 핸들러는 [pet.js](renderer/pet.js) 끝부분에 모여있음), 자유롭게 손질해 쓰세요. 🐶
+This pet is a **PoC**. The point was to learn Claude Code's hook system and to visually catch "what did Claude do / what is it asking me while I stepped away?". The handlers are deliberately easy to add to / tweak (each one lives at the bottom of [pet.js](renderer/pet.js)) — go nuts. 🐶

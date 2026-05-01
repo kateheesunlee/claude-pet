@@ -55,20 +55,20 @@
 
   async function refreshStatus() {
     if (!hooksApi) {
-      setStatus('error', '❌', 'Electron 환경이 아니에요 — 수동 설정을 사용하세요.');
+      setStatus('error', '❌', "Not running in Electron — use manual setup.");
       installGlobal && (installGlobal.disabled = true);
       return;
     }
     const r = await hooksApi.check('global');
     if (r.error) {
-      setStatus('error', '⚠️', `설정 파일 읽기 실패: ${r.error}`);
+      setStatus('error', '⚠️', `Couldn't read settings: ${r.error}`);
     } else if (r.installed) {
-      setStatus('installed', '✅', `훅이 설치되어 있어요 — ${r.path}`);
-      installGlobal.textContent = '✓ 이미 설치됨';
+      setStatus('installed', '✅', `Hooks installed — ${r.path}`);
+      installGlobal.textContent = '✓ Already installed';
       installGlobal.disabled = true;
     } else {
-      setStatus('missing', '⚠️', '아직 훅이 연결되지 않았어요. 아래 버튼으로 설정하세요.');
-      installGlobal.textContent = '✨ 자동 설정하기';
+      setStatus('missing', '⚠️', "Hooks aren't connected yet. Click the button below to set them up.");
+      installGlobal.textContent = '✨ Auto-install';
       installGlobal.disabled = false;
     }
   }
@@ -76,15 +76,15 @@
   installGlobal?.addEventListener('click', async () => {
     if (!hooksApi) return;
     installGlobal.disabled = true;
-    installGlobal.textContent = '설정 중…';
+    installGlobal.textContent = 'Installing…';
     const r = await hooksApi.install('global');
     if (r.ok) {
-      setStatus('installed', '🎉', `완료! ${r.added}개 훅 추가됨 — ${r.path}`);
-      installGlobal.textContent = '✓ 설치됨';
+      setStatus('installed', '🎉', `Done! Added ${r.added} hooks — ${r.path}`);
+      installGlobal.textContent = '✓ Installed';
     } else {
-      setStatus('error', '❌', r.error || '알 수 없는 오류');
+      setStatus('error', '❌', r.error || 'Unknown error');
       installGlobal.disabled = false;
-      installGlobal.textContent = '다시 시도';
+      installGlobal.textContent = 'Try again';
     }
   });
 
@@ -98,14 +98,14 @@
       const code = document.querySelector('.code-block code')?.innerText || '';
       try {
         await navigator.clipboard.writeText(code);
-        copyBtn.textContent = '✓ 복사됨';
+        copyBtn.textContent = '✓ Copied';
         copyBtn.classList.add('copied');
         setTimeout(() => {
-          copyBtn.textContent = '복사';
+          copyBtn.textContent = 'Copy';
           copyBtn.classList.remove('copied');
         }, 1600);
       } catch {
-        copyBtn.textContent = '복사 실패';
+        copyBtn.textContent = 'Copy failed';
       }
     });
   }

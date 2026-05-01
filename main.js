@@ -296,7 +296,7 @@ function installHooks(scope) {
   try {
     settings = readSettings(p);
   } catch (err) {
-    return { ok: false, error: `${p} 읽기 실패: ${err.message}`, path: p };
+    return { ok: false, error: `Failed to read ${p}: ${err.message}`, path: p };
   }
 
   if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {};
@@ -314,7 +314,7 @@ function installHooks(scope) {
   try {
     writeSettings(p, settings);
   } catch (err) {
-    return { ok: false, error: `쓰기 실패: ${err.message}`, path: p };
+    return { ok: false, error: `Write failed: ${err.message}`, path: p };
   }
   return { ok: true, added, path: p };
 }
@@ -380,7 +380,7 @@ function openOnboarding() {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    title: 'Claude Pet — 시작하기',
+    title: 'Claude Pet — Get started',
     backgroundColor: '#FBF7F4',
     titleBarStyle: 'hiddenInset',
     show: false,
@@ -419,8 +419,8 @@ function rebuildTrayMenu() {
     },
     {
       label: globalHookStatus.installed
-        ? '훅 설정: ✓ 글로벌 설치됨'
-        : '훅 설정: ⚠️ 미설치',
+        ? 'Hooks: ✓ installed (global)'
+        : 'Hooks: ⚠️ not installed',
       enabled: false,
     },
     { type: 'separator' },
@@ -449,27 +449,27 @@ function rebuildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: 'Onboarding 다시 보기…',
+      label: 'Show onboarding…',
       click: () => openOnboarding(),
     },
     globalHookStatus.installed
       ? {
-          label: '글로벌 훅 제거…',
+          label: 'Uninstall global hooks…',
           click: () => {
             const r = uninstallHooks('global');
             rebuildTrayMenu();
             if (!r.ok) {
-              dialog.showErrorBox('훅 제거 실패', r.error || 'unknown');
+              dialog.showErrorBox('Uninstall failed', r.error || 'unknown');
             }
           },
         }
       : {
-          label: '글로벌 훅 자동 설정',
+          label: 'Install global hooks',
           click: () => {
             const r = installHooks('global');
             rebuildTrayMenu();
             if (!r.ok) {
-              dialog.showErrorBox('훅 설정 실패', r.error || 'unknown');
+              dialog.showErrorBox('Install failed', r.error || 'unknown');
             }
           },
         },
