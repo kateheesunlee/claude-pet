@@ -3,6 +3,12 @@
 > A little Claude puppy that lives in the corner of your desktop. It comes running over to let you know when Claude Code finishes a response or asks for permission, and occasionally begs you to play.
 
 > 🇰🇷 한국어 README는 [README.ko.md](README.ko.md) 를 보세요.
+>
+> 
+
+https://github.com/user-attachments/assets/1dc5a60a-21e4-4e2e-a405-c7a08301aea1
+
+
 
 ---
 
